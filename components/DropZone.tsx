@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileSpreadsheet, Sparkles, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, Sparkles, AlertCircle, CheckCircle2, Shield, BrainCircuit } from 'lucide-react';
 import { mockMeblironData } from '@/tests/fixtures/mebliron';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { AuditReportData, AuditInputData } from '@/lib/audit/types';
@@ -14,37 +14,83 @@ interface DropZoneProps {
 export function DropZone({ onAuditComplete }: DropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [statusText, setStatusText] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processFile = async (file: File) => {
     setIsLoading(true);
     setError(null);
+    setStatusText('Распознаем структуру отчета (XLSX/CSV)...');
 
     try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Сначала пробуем серверный роут (с сохранением в Neon DB и Gemini AI)
+      setStatusText('Выполняем расчет сливов и запускаем AI-анализ...');
+      const response = await fetch('/api/audit', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.report) {
+          onAuditComplete(data.report, file.name);
+          return;
+        }
+      }
+
+      // Fallback на клиентский парсинг, если API вернул ошибку
+      setStatusText('Локальный анализ выгрузки...');
       const buffer = await file.arrayBuffer();
       const parsedData: AuditInputData = parseDirectExcel(buffer);
       const report = await defaultAuditEngine.runAudit(parsedData);
+      report.campaigns = parsedData.campaigns;
       onAuditComplete(report, file.name);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Ошибка при анализе файла';
-      setError(`${msg}. Проверьте, что в отчете Яндекс.Директа есть столбцы «Кампания» и «Расход».`);
+      const msg = err instanceof Error ? err.message : 'Не удалось обработать файл';
+      setError(
+        `${msg}. Совет: выгрузите из Директа стандартный «Мастер отчетов» или «Статистику по кампаниям» с полями «Кампания», «Расход», «Клики», «Показы».`
+      );
     } finally {
       setIsLoading(false);
+      setStatusText('');
     }
   };
 
   const handleLoadDemo = async () => {
     setIsLoading(true);
     setError(null);
+    setStatusText('Загружаем эталонный кейс «Меблирон»...');
 
     try {
+      const response = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mockMeblironData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.report) {
+          onAuditComplete(data.report, 'mebliron_feb_jul_2026.xlsx (Эталонный кейс Меблирон)');
+          return;
+        }
+      }
+
+      // Fallback
       const report = await defaultAuditEngine.runAudit(mockMeblironData);
-      onAuditComplete(report, 'mebliron_feb_jul_2026.xlsx (Эталонный кейс)');
+      report.campaigns = mockMeblironData.campaigns;
+      onAuditComplete(report, 'mebliron_feb_jul_2026.xlsx (Эталонный кейс Меблирон)');
     } catch {
-      setError('Не удалось загрузить демонстрационные данные.');
+      const report = await defaultAuditEngine.runAudit(mockMeblironData);
+      report.campaigns = mockMeblironData.campaigns;
+      onAuditComplete(report, 'mebliron_feb_jul_2026.xlsx (Эталонный кейс Меблирон)');
     } finally {
       setIsLoading(false);
+      setStatusText('');
     }
   };
 
@@ -64,11 +110,6 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext !== 'xlsx' && ext !== 'csv' && ext !== 'xls') {
-        setError('Пожалуйста, загрузите файл выгрузки Яндекс.Директ в формате .xlsx или .csv');
-        return;
-      }
       await processFile(file);
     }
   };
@@ -112,12 +153,13 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
           </div>
 
           <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-            {isLoading ? 'Анализируем выгрузку Директа...' : 'Перетащите сюда отчет из Яндекс.Директа'}
+            {isLoading ? statusText || 'Анализируем выгрузку Директа...' : 'Перетащите сюда отчет из Яндекс.Директа'}
           </h3>
 
           <p className="text-sm text-slate-500 max-w-md mb-6 leading-relaxed">
-            Поддерживаются файлы <span className="font-semibold text-slate-700">.xlsx</span> и{' '}
-            <span className="font-semibold text-slate-700">.csv</span> (Мастер отчетов или Статистика по кампаниям)
+            Поддерживаются любые форматы: <span className="font-semibold text-slate-700">.xlsx</span>,{' '}
+            <span className="font-semibold text-slate-700">.csv</span> (с разделителями ; и запятыми) и{' '}
+            <span className="font-semibold text-slate-700">.xls</span>
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -125,7 +167,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
               type="button"
               id="choose-file-btn"
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition-colors shadow-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 fileInputRef.current?.click();
@@ -139,7 +181,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
               type="button"
               id="demo-load-btn"
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-sm transition-colors border border-slate-200"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-sm transition-colors border border-slate-200"
               onClick={(e) => {
                 e.stopPropagation();
                 handleLoadDemo();
@@ -165,8 +207,8 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
           <span>Файл анализируется мгновенно и не передается третьим лицам</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-4 h-4 text-blue-600" />
-          <span>Бесплатный расчет сливов за 2 секунды</span>
+          <BrainCircuit className="w-4 h-4 text-purple-600" />
+          <span>AI-интеллект Gemini + 6 математических правил аудита</span>
         </div>
       </div>
     </div>

@@ -37,15 +37,41 @@ export interface AuditInputData {
   };
 }
 
+export interface AiFindingItem {
+  title: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
+  campaignName?: string;
+  description: string;
+  actionRequired: string;
+}
+
+export interface AiAnalysisData {
+  summary: string;
+  nicheAssessment: string;
+  wastedBudgetRub: number;
+  topIssues: AiFindingItem[];
+  growthPotential: {
+    potentialLeadsIncreasePercent: number;
+    recommendedMonthlyBudgetRub: number;
+    forecastExplanation: string;
+  };
+  contractorChecklist: string[];
+}
+
 export interface AuditReportData {
   overallScore: number; // 0..100 Health Score
   totalSpendRub: number;
+  totalConversions?: number;
   totalLossRub: number;
   healthyBudgetRub: number;
   rules: RuleResult[];
   campaignsCount: number;
   generatedAt: string;
+  campaigns?: CampaignData[];
+  aiAnalysis?: AiAnalysisData;
 }
+
+export type AuditReport = AuditReportData;
 
 export interface IAuditRule {
   readonly id: string;

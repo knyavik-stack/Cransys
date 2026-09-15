@@ -16,6 +16,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { ContractorTaskModal } from './ContractorTaskModal';
+import { AuditCharts } from './AuditCharts';
 
 interface AuditResultsProps {
   report: AuditReportData;
@@ -122,6 +123,9 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
           </div>
         </div>
       </div>
+
+      {/* Интерактивные графики и симулятор окупаемости */}
+      <AuditCharts report={report} />
 
       {/* Тарифная плашка переключения */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">

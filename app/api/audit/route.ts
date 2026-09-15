@@ -3,6 +3,7 @@ import { defaultAuditEngine } from '@/lib/audit/engine';
 import { AuditInputData } from '@/lib/audit/types';
 import { mockMeblironData } from '@/tests/fixtures/mebliron';
 import { parseDirectExcel } from '@/lib/parser/excel-parser';
+import { generateAiDirectAudit } from '@/lib/ai/direct-analyst';
 import { getDb } from '@/db';
 
 export async function POST(req: NextRequest) {
@@ -27,10 +28,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Выполнение движка правил
+    // 1. Выполнение математического движка правил
     const report = await defaultAuditEngine.runAudit(inputData);
 
-    // Если база данных подключена, сохраняем аудит-джобу
+    // Добавляем сами кампании для интерактивных визуализаций
+    report.campaigns = inputData.campaigns;
+
+    // 2. Интеллектуальный AI-анализ через Gemini 3.8 Flash (если доступен GEMINI_API_KEY)
+    try {
+      const aiResult = await generateAiDirectAudit(inputData, report);
+      if (aiResult) {
+        report.aiAnalysis = aiResult;
+      }
+    } catch (aiErr) {
+      console.warn('AI analysis skipped (graceful fallback):', aiErr);
+    }
+
+    // 3. Сохранение в базу данных Neon (если подключена)
     let savedJobId: string | null = null;
     const sql = getDb();
     if (sql) {
@@ -63,7 +77,7 @@ export async function POST(req: NextRequest) {
       jobId: savedJobId,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Внутренняя ошибка сервера при аудите';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Не удалось распознать отчет';
+    return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
