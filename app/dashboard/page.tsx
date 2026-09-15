@@ -14,11 +14,16 @@ import {
   User,
   LogOut,
   LogIn,
+  Crown,
+  Building2,
+  Settings,
+  CreditCard,
 } from 'lucide-react';
 import { AuditReportData } from '@/lib/audit/types';
 import { AuditResults } from '@/components/AuditResults';
 import { useUser } from '@/lib/auth/user-context';
-import { Crown } from 'lucide-react';
+import { PricingModal } from '@/components/PricingModal';
+import { WhiteLabelSettingsModal } from '@/components/WhiteLabelSettingsModal';
 
 interface AuditHistoryItem {
   id: string;
@@ -34,8 +39,11 @@ interface AuditHistoryItem {
 export default function DashboardPage() {
   const { user, loginTestAccount, setTier, logout } = useUser();
   const [history, setHistory] = useState<AuditHistoryItem[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
+
+  // Модальные окна
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
+  const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState(false);
 
   // Для просмотра конкретного аудита из истории
   const [selectedReport, setSelectedReport] = useState<AuditReportData | null>(null);
@@ -192,32 +200,26 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              {/* Переключатель тарифа для тестирования */}
+              {/* Переключатель тарифа и настройки */}
               {user && (
-                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 self-start sm:self-auto">
-                  <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1 pl-1">
-                    <Crown className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Тариф:</span>
-                  </span>
-                  <div className="grid grid-cols-3 gap-1">
-                    {(['EXPRESS', 'PRO', 'MAX'] as const).map((t) => {
-                      const isActive = user.tier === t;
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setTier(t)}
-                          className={`px-2 py-0.5 text-[11px] font-bold rounded-md transition-all ${
-                            isActive
-                              ? 'bg-blue-600 text-white shadow-xs'
-                              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                          }`}
-                        >
-                          {t === 'EXPRESS' ? 'Экспресс' : t === 'PRO' ? 'Pro' : 'MAX'}
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsWhiteLabelModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold border border-purple-200 transition-colors flex items-center gap-1.5"
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                    <span>White-label брендинг</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsPricingModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200 transition-colors flex items-center gap-1.5"
+                  >
+                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Тариф: {user.tier || 'PRO'}</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -354,6 +356,18 @@ export default function DashboardPage() {
           </>
         )}
       </main>
+
+      {/* Модальное окно выбора тарифов и оплаты */}
+      <PricingModal
+        isOpen={isPricingModalOpen}
+        onClose={() => setIsPricingModalOpen(false)}
+      />
+
+      {/* Модальное окно настройки брендинга White-label */}
+      <WhiteLabelSettingsModal
+        isOpen={isWhiteLabelModalOpen}
+        onClose={() => setIsWhiteLabelModalOpen(false)}
+      />
     </div>
   );
 }

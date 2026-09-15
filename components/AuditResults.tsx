@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { AuditReportData, RuleResult } from '@/lib/audit/types';
+import { useUser } from '@/lib/auth/user-context';
 import {
   AlertTriangle,
   CheckCircle,
@@ -14,23 +15,30 @@ import {
   FileText,
   RotateCcw,
   ClipboardList,
+  Building2,
+  Settings,
+  CreditCard,
 } from 'lucide-react';
 import { ContractorTaskModal } from './ContractorTaskModal';
 import { AuditCharts } from './AuditCharts';
 import { SearchQueryVisualizer } from './SearchQueryVisualizer';
+import { PricingModal } from './PricingModal';
+import { WhiteLabelSettingsModal } from './WhiteLabelSettingsModal';
 
 interface AuditResultsProps {
-
   report: AuditReportData;
   sourceName: string;
   onReset: () => void;
 }
 
 export function AuditResults({ report, sourceName, onReset }: AuditResultsProps) {
-  const [selectedTier, setSelectedTier] = useState<'EXPRESS' | 'PRO' | 'MAX'>('EXPRESS');
+  const { user, setTier } = useUser();
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
+  const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState(false);
 
+  const currentTier = user?.tier || 'EXPRESS';
   const flaggedRules = report.rules.filter((r) => r.flagged);
   const passedRules = report.rules.filter((r) => !r.flagged);
 
@@ -38,13 +46,72 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
     setIsPdfGenerating(true);
     setTimeout(() => {
       setIsPdfGenerating(false);
-      // Генерация наглядного текстового/печатного отчета
       window.print();
-    }, 600);
+    }, 500);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 sm:space-y-8 animate-fadeIn">
+      {/* White-label шапка агентства (Тариф MAX / Брендинг) */}
+      {user?.tier === 'MAX' || user?.agencyName ? (
+        <div className="bg-gradient-to-r from-purple-900 to-indigo-950 text-white rounded-2xl p-5 sm:p-6 shadow-md border border-purple-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-purple-500/30 border border-purple-400/40 text-[10px] font-bold uppercase tracking-wider text-purple-200">
+                White-label Аудит
+              </span>
+              <span className="text-xs text-purple-300">Коммерческий отчет для клиента</span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+              {user?.agencyName || 'Ваше Агентство / Эксперт по рекламе'}
+            </h3>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-purple-200 pt-1">
+              {user?.agencyContact && <span>📞 {user.agencyContact}</span>}
+              {user?.agencyWebsite && <span>🌐 {user.agencyWebsite}</span>}
+              {!user?.agencyContact && !user?.agencyWebsite && (
+                <span>Контакты не указаны (нажмите «Настроить брендинг»)</span>
+              )}
+            </div>
+            {user?.customNotes && (
+              <p className="text-xs text-purple-100 bg-white/10 p-2.5 rounded-xl mt-2 border border-white/10 max-w-2xl leading-relaxed">
+                💬 <strong>Комментарий специалиста:</strong> {user.customNotes}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsWhiteLabelModalOpen(true)}
+            className="print:hidden px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white transition-all flex items-center gap-1.5 shrink-0"
+          >
+            <Settings className="w-3.5 h-3.5 text-purple-300" />
+            <span>Настроить брендинг</span>
+          </button>
+        </div>
+      ) : (
+        <div className="print:hidden bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 shrink-0">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-white">Вы маркетолог или агентство?</h4>
+              <p className="text-[11px] sm:text-xs text-slate-300">
+                Формируйте коммерческие PDF-отчеты с вашим логотипом и контактами для клиентов
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsPricingModalOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-xs transition-all shrink-0 flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Подключить White-label</span>
+          </button>
+        </div>
+      )}
+
       {/* Верхняя плашка сводки */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 lg:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-5 border-b border-slate-100">
@@ -135,49 +202,23 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
       )}
 
       {/* Тарифная плашка переключения */}
-
       <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-xs">
         <div className="print:hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-slate-900">Уровень детализации отчета</h3>
             <p className="text-xs text-slate-500">
-              Выберите тариф для разблокировки точных рекомендаций и ТЗ
+              Текущий тариф: <strong className="text-blue-600 font-semibold">{currentTier === 'EXPRESS' ? 'Экспресс (990 ₽)' : currentTier === 'PRO' ? 'PRO (2 990 ₽/мес)' : 'MAX White-label (6 990 ₽/мес)'}</strong>
             </p>
           </div>
 
-          <div className="grid grid-cols-3 w-full sm:w-auto p-1 bg-slate-100 rounded-xl border border-slate-200 gap-0.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setSelectedTier('EXPRESS')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-center ${
-                selectedTier === 'EXPRESS'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              onClick={() => setIsPricingModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200 transition-all flex items-center gap-1.5"
             >
-              Экспресс (0 ₽)
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedTier('PRO')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-center ${
-                selectedTier === 'PRO'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Pro (399 ₽)
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedTier('MAX')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-center ${
-                selectedTier === 'MAX'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              MAX (999 ₽)
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Сменить тариф / Оплата</span>
             </button>
           </div>
         </div>
@@ -190,7 +231,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
           </h4>
 
           {flaggedRules.map((rule: RuleResult) => {
-            const isLocked = selectedTier === 'EXPRESS' && rule.isLockedInExpress;
+            const isLocked = currentTier === 'EXPRESS' && rule.isLockedInExpress;
 
             return (
               <div
@@ -228,14 +269,14 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
                   <div className="p-3 rounded-lg bg-white/90 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-500">
                     <div className="flex items-center gap-2">
                       <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>Рекомендация и пошаговый план доступны в тарифе Pro</span>
+                      <span>Рекомендация и пошаговый план доступны в тарифе PRO / MAX</span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setSelectedTier('PRO')}
+                      onClick={() => setIsPricingModalOpen(true)}
                       className="font-semibold text-blue-600 hover:text-blue-700 underline shrink-0"
                     >
-                      Разблокировать (399 ₽)
+                      Разблокировать в PRO
                     </button>
                   </div>
                 ) : (
@@ -277,15 +318,15 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
         {/* Действия и генерация отчетов */}
         <div className="print:hidden mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-xs text-slate-500 text-center sm:text-left">
-            {selectedTier === 'EXPRESS' ? (
+            {currentTier === 'EXPRESS' ? (
               <span>В экспресс-отчете показаны первичные факты сливов.</span>
-            ) : selectedTier === 'PRO' ? (
+            ) : currentTier === 'PRO' ? (
               <span className="text-blue-600 font-medium">
-                Включены все 4 правила аудита с детализацией настроек Директа.
+                Включены все правила аудита, AI-анализ запросов и детализация настроек Директа.
               </span>
             ) : (
-              <span className="text-slate-900 font-medium">
-                Тариф MAX включает PDF-отчет для руководства и техническое задание подрядчику.
+              <span className="text-purple-700 font-medium">
+                Тариф MAX включает White-label брендинг отчета, PDF для руководства и техническое задание подрядчику.
               </span>
             )}
           </div>
@@ -317,7 +358,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
                 <>
                   <Download className="w-4 h-4 shrink-0" />
                   <span>
-                    {selectedTier === 'EXPRESS' ? 'Распечатать / В PDF' : 'Скачать PDF-отчет'}
+                    {currentTier === 'MAX' ? 'Скачать White-label PDF' : 'Распечатать / В PDF'}
                   </span>
                 </>
               )}
@@ -326,13 +367,24 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
         </div>
       </div>
 
-
       {/* Модальное окно ТЗ подрядчику */}
       <ContractorTaskModal
         report={report}
         sourceName={sourceName}
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
+      />
+
+      {/* Модальное окно выбора тарифов и оплаты */}
+      <PricingModal
+        isOpen={isPricingModalOpen}
+        onClose={() => setIsPricingModalOpen(false)}
+      />
+
+      {/* Модальное окно настройки брендинга White-label */}
+      <WhiteLabelSettingsModal
+        isOpen={isWhiteLabelModalOpen}
+        onClose={() => setIsWhiteLabelModalOpen(false)}
       />
     </div>
   );

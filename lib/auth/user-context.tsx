@@ -9,6 +9,10 @@ export interface UserProfile {
   role?: string;
   tier: 'EXPRESS' | 'PRO' | 'MAX';
   createdAt?: string;
+  agencyName?: string;
+  agencyContact?: string;
+  agencyWebsite?: string;
+  customNotes?: string;
 }
 
 interface UserContextType {
@@ -17,6 +21,7 @@ interface UserContextType {
   login: (email: string, name?: string) => void;
   loginTestAccount: (tier?: 'EXPRESS' | 'PRO' | 'MAX') => void;
   setTier: (tier: 'EXPRESS' | 'PRO' | 'MAX') => void;
+  updateProfile: (data: Partial<UserProfile>) => void;
   logout: () => void;
 }
 
@@ -26,6 +31,7 @@ const UserContext = createContext<UserContextType>({
   login: () => {},
   loginTestAccount: () => {},
   setTier: () => {},
+  updateProfile: () => {},
   logout: () => {},
 });
 
@@ -96,6 +102,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   };
 
+  const updateProfile = (data: Partial<UserProfile>) => {
+    if (!user) return;
+    const updated = { ...user, ...data };
+    setUser(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch {}
+  };
+
   const logout = () => {
     setUser(null);
     try {
@@ -104,7 +119,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, isLoading, login, loginTestAccount, setTier, logout }}>
+    <UserContext.Provider value={{ user, isLoading, login, loginTestAccount, setTier, updateProfile, logout }}>
       {children}
     </UserContext.Provider>
   );
