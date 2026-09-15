@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -154,9 +154,16 @@ const TIER_COLORS: Record<UserTier, string> = {
   CORP: '#4F46E5',
 };
 
+const emptySubscribe = () => () => {};
+
 export default function AdminPage() {
   const router = useRouter();
   const { user, loginWithCredentials, logout } = useUser();
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   const [adminEmailInput, setAdminEmailInput] = useState('admin@cransys.ru');
   const [adminPassInput, setAdminPassInput] = useState('');
@@ -240,6 +247,17 @@ export default function AdminPage() {
   const totalRevenue = users.reduce((acc, u) => acc + u.revenue, 0) + 148500;
   const totalAuditsRun = users.reduce((acc, u) => acc + u.reportsUsed, 0) + 654;
   const totalGuestDemoAudits = 874;
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="text-center text-slate-400 text-sm flex items-center gap-2">
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span>Загрузка панели управления...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (
