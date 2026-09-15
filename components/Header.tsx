@@ -81,19 +81,11 @@ export function Header() {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => loginTestAccount('PRO')}
-                    className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-1.5 rounded-lg transition-colors"
-                    title="Быстрый вход для проверки всех тарифов"
-                  >
-                    <Sparkles className="w-3 h-3 text-amber-600" />
-                    <span>Тест-аккаунт</span>
-                  </button>
+                <div className="flex items-center gap-1.5">
                   <Link
                     id="header-signin-link"
                     href="/sign-in"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
                   >
                     <LogIn className="w-3.5 h-3.5 text-slate-500" />
                     <span>Вход</span>

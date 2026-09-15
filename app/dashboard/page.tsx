@@ -143,20 +143,12 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => loginTestAccount('MAX')}
-                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors flex items-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span className="hidden sm:inline">Тестовый профиль</span>
-                  <span className="sm:hidden">Тест</span>
-                </button>
                 <Link
                   href="/sign-in"
-                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors flex items-center gap-1"
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors flex items-center gap-1.5"
                 >
                   <LogIn className="w-3.5 h-3.5" />
-                  <span>Войти</span>
+                  <span>Войти в аккаунт</span>
                 </Link>
               </div>
             )}

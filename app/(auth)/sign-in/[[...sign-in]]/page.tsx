@@ -3,38 +3,34 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Shield, Mail, Sparkles, CheckCircle2, Lock } from 'lucide-react';
+import { ArrowLeft, Shield, Mail, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
-import { UserTier } from '@/lib/billing/tiers';
 
 export default function SignInPage() {
   const router = useRouter();
-  const { user, login, loginTestAccount, logout } = useUser();
+  const { user, loginWithCredentials, logout } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setIsSubmitting(true);
+    setErrorMsg('');
 
-    setTimeout(() => {
-      login(email);
-      setSuccessMsg('Успешный вход! Перенаправляем в кабинет...');
+    const res = await loginWithCredentials(email, password);
+    if (res.success) {
+      setSuccessMsg('Успешная авторизация! Перенаправляем в личный кабинет...');
       setTimeout(() => {
         router.push('/dashboard');
-      }, 700);
-    }, 400);
-  };
-
-  const handleTestAccountLogin = (tier: UserTier) => {
-    loginTestAccount(tier);
-    setSuccessMsg(`Вход выполнен в тестовый аккаунт (Тариф ${tier})...`);
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 500);
+      }, 500);
+    } else {
+      setErrorMsg(res.error || 'Ошибка входа. Проверьте введенные данные.');
+      setIsSubmitting(false);
+    }
   };
 
   if (user) {
@@ -76,9 +72,16 @@ export default function SignInPage() {
           </div>
           <h2 className="text-2xl font-bold text-slate-900">Вход в Cransys</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Для сохранения истории аудитов и привязки кабинетов Яндекс.Директ
+            Для доступа к истории проверок и управления тарифами
           </p>
         </div>
+
+        {errorMsg && (
+          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         {successMsg && (
           <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-2">
@@ -112,6 +115,7 @@ export default function SignInPage() {
             <div className="relative">
               <input
                 type="password"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -124,72 +128,35 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-xs"
+            className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-xs mt-2"
           >
-            {isSubmitting ? 'Входим...' : 'Войти по Email'}
+            {isSubmitting ? 'Проверка данных...' : 'Войти в аккаунт'}
           </button>
         </form>
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-slate-400 font-medium">или быстрый доступ</span>
-          </div>
-        </div>
-
-        <div className="space-y-2 mb-6">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center mb-2">
-            Быстрый вход для тестирования тарифов:
-          </p>
-          <div className="grid grid-cols-4 gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleTestAccountLogin('EXPRESS_PACK')}
-              className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-semibold text-[11px] transition-colors text-center"
-            >
-              Экспресс
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTestAccountLogin('PRO')}
-              className="py-1.5 px-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-semibold text-[11px] transition-colors text-center"
-            >
-              PRO
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTestAccountLogin('MAX')}
-              className="py-1.5 px-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 font-semibold text-[11px] transition-colors text-center"
-            >
-              MAX
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTestAccountLogin('CORP')}
-              className="py-1.5 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 font-semibold text-[11px] transition-colors text-center"
-            >
-              Corp
-            </button>
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-100 text-[11px] text-blue-900 flex items-start gap-2.5 mb-6">
-          <Shield className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 flex items-start gap-2.5 my-6">
+          <Shield className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
           <span>
-            Полная совместимость с Clerk Auth и Neon PostgreSQL. Все данные сохраняются защищенно в облаке.
+            Безопасная сквозная авторизация. Ваши данные защищены по стандарту 152-ФЗ РФ.
           </span>
         </div>
 
-        <div className="text-center">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Вернуться на главную</span>
-          </Link>
+        <div className="text-center space-y-2">
+          <p className="text-xs text-slate-500">
+            Нет аккаунта?{' '}
+            <Link href="/sign-up" className="text-blue-600 font-semibold hover:underline">
+              Зарегистрироваться
+            </Link>
+          </p>
+          <div>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Вернуться на главную</span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

@@ -6,15 +6,37 @@ import { Footer } from '@/components/Footer';
 import { DropZone } from '@/components/DropZone';
 import { AuditResults } from '@/components/AuditResults';
 import { AuditReportData } from '@/lib/audit/types';
-import { Shield, Zap, TrendingDown, Target, HelpCircle, Check, ArrowRight, KeyRound, Building2, Sparkles } from 'lucide-react';
+import {
+  Shield,
+  Zap,
+  TrendingDown,
+  Target,
+  HelpCircle,
+  Check,
+  ArrowRight,
+  KeyRound,
+  Building2,
+  Sparkles,
+  Eye,
+  CheckCircle2,
+  Lock,
+  Layers,
+  Search,
+  FileCheck2,
+} from 'lucide-react';
 import { PricingModal } from '@/components/PricingModal';
 import { TIER_LIST, UserTier } from '@/lib/billing/tiers';
+import { mockMeblironData } from '@/tests/fixtures/mebliron';
+import { defaultAuditEngine } from '@/lib/audit/engine';
+import { useUser } from '@/lib/auth/user-context';
 
 export default function HomePage() {
+  const { incrementReportsUsed } = useUser();
   const [activeReport, setActiveReport] = useState<AuditReportData | null>(null);
   const [sourceName, setSourceName] = useState<string>('');
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [selectedPricingTier, setSelectedPricingTier] = useState<UserTier | undefined>();
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   const handleAuditComplete = (report: AuditReportData, fileName: string) => {
     setActiveReport(report);
@@ -31,6 +53,45 @@ export default function HomePage() {
     setIsPricingModalOpen(true);
   };
 
+  const handleRunDemoAudit = async () => {
+    setIsDemoLoading(true);
+    try {
+      const response = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mockMeblironData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.report) {
+          incrementReportsUsed();
+          setActiveReport(data.report);
+          setSourceName('sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+      }
+
+      // Fallback
+      const report = await defaultAuditEngine.runAudit(mockMeblironData);
+      report.campaigns = mockMeblironData.campaigns;
+      incrementReportsUsed();
+      setActiveReport(report);
+      setSourceName('sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      const report = await defaultAuditEngine.runAudit(mockMeblironData);
+      report.campaigns = mockMeblironData.campaigns;
+      incrementReportsUsed();
+      setActiveReport(report);
+      setSourceName('sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      setIsDemoLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 print:bg-white print:p-0">
       <div className="print:hidden">
@@ -39,21 +100,21 @@ export default function HomePage() {
 
       <main className="flex-1 print:p-0">
         {/* Hero Section */}
-        <section id="audit-section" className="pt-10 sm:pt-16 pb-12 px-4 sm:px-6 lg:px-8 print:p-0">
+        <section id="audit-section" className="pt-8 sm:pt-14 pb-10 px-4 sm:px-6 lg:px-8 print:p-0">
           {!activeReport && (
-            <div className="max-w-4xl mx-auto text-center mb-10">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-5">
+            <div className="max-w-4xl mx-auto text-center mb-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-4">
                 <Zap className="w-3.5 h-3.5" />
-                <span>Движок аудита Яндекс.Директ 2026</span>
+                <span>Независимый аудит Яндекс.Директ 2026</span>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-tight mb-5">
+              <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-tight mb-4">
                 Аудит рекламы Яндекс.Директ{' '}
                 <span className="text-blue-600">за 2 минуты</span>
               </h1>
 
-              <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-                Бесплатный независимый экспресс-анализ выгрузки: узнайте, сколько бюджета сливается в сетях (РСЯ), на неэффективных смартфонах и в автостратегиях без конверсий.
+              <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                Беспристрастный анализ выгрузки или прямое подключение по API: выявите скрытые сливы в РСЯ, нецелевой поиск, переплату за мобильные и сбои автостратегий.
               </p>
             </div>
           )}
@@ -70,62 +131,112 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* Секция: Как это работает и 3 ключевые уязвимости */}
+        {/* Секция: Что проверяет независимый движок Cransys */}
         {!activeReport && (
           <>
-            <section className="py-12 border-t border-slate-200/80 bg-white px-4 sm:px-6 lg:px-8">
+            <section className="py-12 border-t border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
               <div className="max-w-6xl mx-auto">
-                <div className="text-center max-w-2xl mx-auto mb-10">
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                {/* Заголовок и главное преимущество */}
+                <div className="text-center max-w-3xl mx-auto mb-10">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold mb-2">
+                    <Shield className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>100% независимый алгоритм без конфликта интересов</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-3">
                     Что проверяет независимый движок Cransys
                   </h2>
-                  <p className="text-sm text-slate-500">
-                    По статистике 7 из 10 микробизнесов переплачивают за мусорный трафик из-за скрытых настроек
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    Рекламным системам выгодно советовать «повышать бюджет» и «включать автотаргетинг». Алгоритм <strong className="text-slate-900">Cransys защищает ваш бюджет</strong>: находит мусорный трафик, рассчитывает сумму неэффективного расхода и формирует готовое ТЗ для исправления.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="p-6 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold mb-4">
-                      <TrendingDown className="w-5 h-5" />
+                {/* 4 компактных вектора проверки */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
+                    <div className="w-9 h-9 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold mb-3">
+                      <TrendingDown className="w-4 h-4" />
                     </div>
-                    <h3 className="font-bold text-slate-900 text-base mb-2">Сливы в сетях (РСЯ)</h3>
+                    <h3 className="font-bold text-slate-900 text-sm mb-1.5">Сливы в сетях (РСЯ)</h3>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      Выявление кампаний, где до 98% бюджета уходит на мобильные приложения и игры в РСЯ без единой конверсии.
+                      Поиск мусорных сайтов-ловушек, кликбейтных приложений и мобильных игр, съедающих до 95% бюджета без заявок.
                     </p>
                   </div>
 
-                  <div className="p-6 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold mb-4">
-                      <Target className="w-5 h-5" />
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold mb-3">
+                      <Search className="w-4 h-4" />
                     </div>
-                    <h3 className="font-bold text-slate-900 text-base mb-2">Переплата за мобильные</h3>
+                    <h3 className="font-bold text-slate-900 text-sm mb-1.5">Нецелевая семантика</h3>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      Расчет реальной стоимости лида (CPA) на смартфонах по сравнению с ПК и расчет экономии при корректировках.
+                      Выявление информационных фраз, автотаргетинга и генерация готового списка минус-слов для копирования в 1 клик.
                     </p>
                   </div>
 
-                  <div className="p-6 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold mb-4">
-                      <Shield className="w-5 h-5" />
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold mb-3">
+                      <Target className="w-4 h-4" />
                     </div>
-                    <h3 className="font-bold text-slate-900 text-base mb-2">Слепые автостратегии</h3>
+                    <h3 className="font-bold text-slate-900 text-sm mb-1.5">Переплата за мобильные</h3>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      Определение стратегий закупки кликов без привязки к достижению целей Метрики и фиксация суммы риска.
+                      Сравнение стоимости лида (CPA) на смартфонах и ПК. Расчет точной корректировки ставок для остановки сливов.
                     </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors">
+                    <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold mb-3">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <h3 className="font-bold text-slate-900 text-sm mb-1.5">Слепые автостратегии</h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Диагностика обучения робота Директа на мусорных или микро-целях без учета реальных продаж и ROI.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Интерактивный блок призыва (CTA): Демо без регистрации -> Выбор платного тарифа */}
+                <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white shadow-sm border border-slate-700/60 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="space-y-2 text-center md:text-left">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[11px] font-medium">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Мгновенный тест возможностей</span>
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+                      Оцените глубину аудита на эталонном отчете
+                    </h3>
+                    <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                      Попробуйте аудит прямо сейчас без регистрации и ввода карт. После ознакомления с демо вы сможете зарегистрироваться и подключить свой рекламный кабинет.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleRunDemoAudit}
+                      disabled={isDemoLoading}
+                      className="w-full sm:w-auto px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all shadow-md flex items-center justify-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>{isDemoLoading ? 'Запуск анализа...' : 'Посмотреть ДЕМО-отчет (без регистрации)'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPricingForTier('PRO')}
+                      className="w-full sm:w-auto px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/20 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <span>Выбрать тариф и подключить</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
                 {/* FAQ / 152-ФЗ Блок */}
-                <div className="mt-12 p-6 rounded-2xl bg-blue-50/50 border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <HelpCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                    <div className="text-xs text-slate-600">
-                      <strong className="text-slate-900 block mb-0.5">
-                        Безопасно ли загружать выгрузку?
-                      </strong>
-                      Отчет Яндекс.Директа содержит лишь статистику расходов и кликов. В нем нет контактов ваших клиентов, телефонов или номеров счетов. Сервис работает строго по 152-ФЗ РФ.
-                    </div>
+                <div className="mt-8 p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-600">
+                  <div className="flex items-center gap-2.5">
+                    <Shield className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      <strong className="text-slate-900">100% безопасность по 152-ФЗ РФ:</strong> выгрузка статистики Директа обезличена и не содержит персональных данных клиентов.
+                    </span>
                   </div>
                 </div>
               </div>

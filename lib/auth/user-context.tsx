@@ -23,6 +23,7 @@ interface UserContextType {
   isLoading: boolean;
   tierConfig: TierDefinition;
   login: (email: string, name?: string) => void;
+  loginWithCredentials: (email: string, password?: string, name?: string) => Promise<{ success: boolean; error?: string }>;
   loginTestAccount: (tier?: UserTier) => void;
   setTier: (tier: UserTier) => void;
   updateProfile: (data: Partial<UserProfile>) => void;
@@ -37,6 +38,7 @@ const UserContext = createContext<UserContextType>({
   isLoading: true,
   tierConfig: getTierConfig('PRO'),
   login: () => {},
+  loginWithCredentials: async () => ({ success: true }),
   loginTestAccount: () => {},
   setTier: () => {},
   updateProfile: () => {},
@@ -72,12 +74,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const login = (email: string, name?: string) => {
-    const defaultTier: UserTier = 'PRO';
+    const defaultTier: UserTier = 'EXPRESS_PACK';
     const config = getTierConfig(defaultTier);
     const newUser: UserProfile = {
       id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       email,
       name: name || email.split('@')[0] || 'Пользователь',
+      role: 'USER',
       tier: defaultTier,
       reportsUsed: 0,
       reportsLimit: config.reportsLimit,
@@ -87,6 +90,38 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
     } catch {}
+  };
+
+  const loginWithCredentials = async (
+    email: string,
+    password?: string,
+    name?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        setIsLoading(false);
+        return { success: false, error: data.error || 'Ошибка входа' };
+      }
+
+      const loggedUser: UserProfile = data.user;
+      setUser(loggedUser);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(loggedUser));
+      } catch {}
+      setIsLoading(false);
+      return { success: true };
+    } catch (err) {
+      setIsLoading(false);
+      return { success: false, error: 'Сетевая ошибка при подключении к серверу' };
+    }
   };
 
   const loginTestAccount = (tier: UserTier = 'PRO') => {
@@ -188,6 +223,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         tierConfig: currentTierConfig,
         login,
+        loginWithCredentials,
         loginTestAccount,
         setTier,
         updateProfile,
