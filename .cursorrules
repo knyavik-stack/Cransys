@@ -1,0 +1,18 @@
+# Cransys Project Rules for AI Assistant
+
+## Context & Stack
+- Product: Automated Direct Advertising Audit for Micro-business (Cransys)
+- Framework: Next.js 15 (App Router, React 19, TypeScript)
+- Database: Neon.tech (Serverless PostgreSQL via Drizzle ORM)
+- Authentication: Clerk.com (SDK `@clerk/nextjs`)
+- Blob Storage: Cloudflare R2 (`@aws-sdk/client-s3`)
+- Styling: Tailwind CSS, Shadcn UI, Lucide Icons
+- State/Validation: Zod schemas for Excel/CSV parsing
+
+## Coding Standards
+1. Strict TypeScript: No `any`. Define Zod schemas for input data.
+2. Rule Engine Isolation: Audit rules must implement `IAuditRule` interface in `lib/audit/rules/`.
+3. Server Actions & API Routes: Use Clerk `auth()` middleware to check authorization.
+4. UI Tone: Professional, clean, Light Mode Premier theme (Slate-50/100, Sapphire Blue #2563EB, Loss Red #DC2626).
+5. Output format: Code must be production-ready, typed, and fully functional. No pseudo-code.
+6. Language: Все интерфейсы, тексты, ошибки и комментарии — на понятном русском языке.
