@@ -6,12 +6,14 @@ import { mockMeblironData } from '@/tests/fixtures/mebliron';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { AuditReportData, AuditInputData } from '@/lib/audit/types';
 import { parseDirectExcel } from '@/lib/parser/excel-parser';
+import { useUser } from '@/lib/auth/user-context';
 
 interface DropZoneProps {
   onAuditComplete: (report: AuditReportData, sourceName: string) => void;
 }
 
 export function DropZone({ onAuditComplete }: DropZoneProps) {
+  const { user } = useUser();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState<string>('');
@@ -29,8 +31,15 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
 
       // Сначала пробуем серверный роут (с сохранением в Neon DB и Gemini AI)
       setStatusText('Выполняем расчет сливов и запускаем AI-анализ...');
+      const headers: Record<string, string> = {};
+      if (user) {
+        headers['x-user-id'] = user.id;
+        headers['x-user-email'] = user.email;
+      }
+
       const response = await fetch('/api/audit', {
         method: 'POST',
+        headers,
         body: formData,
       });
 

@@ -49,9 +49,26 @@ export async function POST(req: NextRequest) {
     const sql = getDb();
     if (sql) {
       try {
+        const userIdHeader = req.headers.get('x-user-id');
+        const userEmailHeader = req.headers.get('x-user-email');
+
+        let validUserId: string | null = null;
+        if (userIdHeader && userEmailHeader) {
+          try {
+            await sql`
+              INSERT INTO public.profiles (id, email, first_name)
+              VALUES (${userIdHeader}, ${userEmailHeader}, 'Пользователь')
+              ON CONFLICT (id) DO NOTHING;
+            `;
+            validUserId = userIdHeader;
+          } catch {
+            // Игнорируем ошибку профиля, если таблица еще не обновлена
+          }
+        }
+
         const insertRes = await sql`
-          INSERT INTO public.audit_jobs (file_name, source_type, status)
-          VALUES (${fileName}, 'YANDEX_DIRECT_XLSX', 'COMPLETED')
+          INSERT INTO public.audit_jobs (user_id, file_name, source_type, status)
+          VALUES (${validUserId}, ${fileName}, 'YANDEX_DIRECT_XLSX', 'COMPLETED')
           RETURNING id;
         `;
         if (insertRes && insertRes[0]) {
@@ -62,7 +79,7 @@ export async function POST(req: NextRequest) {
             )
             VALUES (
               ${savedJobId}, 'EXPRESS', ${report.totalSpendRub}, ${report.totalLossRub},
-              ${report.overallScore}, ${JSON.stringify(report.rules)}
+              ${report.overallScore}, ${JSON.stringify(report)}
             );
           `;
         }
