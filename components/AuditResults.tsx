@@ -24,6 +24,7 @@ import { AuditCharts } from './AuditCharts';
 import { SearchQueryVisualizer } from './SearchQueryVisualizer';
 import { PricingModal } from './PricingModal';
 import { WhiteLabelSettingsModal } from './WhiteLabelSettingsModal';
+import { getTierConfig, isFeatureAllowed } from '@/lib/billing/tiers';
 
 interface AuditResultsProps {
   report: AuditReportData;
@@ -32,13 +33,16 @@ interface AuditResultsProps {
 }
 
 export function AuditResults({ report, sourceName, onReset }: AuditResultsProps) {
-  const { user, setTier } = useUser();
+  const { user, isAllowed } = useUser();
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState(false);
 
-  const currentTier = user?.tier || 'EXPRESS';
+  const tierConfig = getTierConfig(user?.tier);
+  const hasWhiteLabel = isAllowed('whiteLabel') || user?.tier === 'MAX' || user?.tier === 'CORP';
+  const isExpressTier = !user?.tier || user?.tier === 'EXPRESS_SINGLE' || user?.tier === 'EXPRESS_PACK';
+
   const flaggedRules = report.rules.filter((r) => r.flagged);
   const passedRules = report.rules.filter((r) => !r.flagged);
 
@@ -52,8 +56,8 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 sm:space-y-8 animate-fadeIn">
-      {/* White-label шапка агентства (Тариф MAX / Брендинг) */}
-      {user?.tier === 'MAX' || user?.agencyName ? (
+      {/* White-label шапка агентства (Тариф MAX/Corp / Брендинг) */}
+      {hasWhiteLabel && (user?.agencyName || user?.name) ? (
         <div className="bg-gradient-to-r from-purple-900 to-indigo-950 text-white rounded-2xl p-5 sm:p-6 shadow-md border border-purple-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -97,7 +101,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
             <div>
               <h4 className="text-xs sm:text-sm font-bold text-white">Вы маркетолог или агентство?</h4>
               <p className="text-[11px] sm:text-xs text-slate-300">
-                Формируйте коммерческие PDF-отчеты с вашим логотипом и контактами для клиентов
+                Формируйте коммерческие PDF-отчеты с вашим логотипом и контактами для клиентов (тариф MAX / Corp)
               </p>
             </div>
           </div>
@@ -207,7 +211,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
           <div>
             <h3 className="text-base sm:text-lg font-bold text-slate-900">Уровень детализации отчета</h3>
             <p className="text-xs text-slate-500">
-              Текущий тариф: <strong className="text-blue-600 font-semibold">{currentTier === 'EXPRESS' ? 'Экспресс (990 ₽)' : currentTier === 'PRO' ? 'PRO (2 990 ₽/мес)' : 'MAX White-label (6 990 ₽/мес)'}</strong>
+              Текущий тариф: <strong className="text-blue-600 font-semibold">{tierConfig.name} ({tierConfig.priceFormatted})</strong>
             </p>
           </div>
 
@@ -218,7 +222,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
               className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200 transition-all flex items-center gap-1.5"
             >
               <CreditCard className="w-3.5 h-3.5" />
-              <span>Сменить тариф / Оплата</span>
+              <span>Тарифы и лимиты</span>
             </button>
           </div>
         </div>
@@ -231,7 +235,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
           </h4>
 
           {flaggedRules.map((rule: RuleResult) => {
-            const isLocked = currentTier === 'EXPRESS' && rule.isLockedInExpress;
+            const isLocked = isExpressTier && rule.isLockedInExpress;
 
             return (
               <div
@@ -269,7 +273,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
                   <div className="p-3 rounded-lg bg-white/90 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-500">
                     <div className="flex items-center gap-2">
                       <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>Рекомендация и пошаговый план доступны в тарифе PRO / MAX</span>
+                      <span>Рекомендация и пошаговый план доступны в тарифе PRO / MAX / Corp</span>
                     </div>
                     <button
                       type="button"
@@ -318,15 +322,15 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
         {/* Действия и генерация отчетов */}
         <div className="print:hidden mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-xs text-slate-500 text-center sm:text-left">
-            {currentTier === 'EXPRESS' ? (
+            {isExpressTier ? (
               <span>В экспресс-отчете показаны первичные факты сливов.</span>
-            ) : currentTier === 'PRO' ? (
+            ) : tierConfig.id === 'PRO' ? (
               <span className="text-blue-600 font-medium">
                 Включены все правила аудита, AI-анализ запросов и детализация настроек Директа.
               </span>
             ) : (
               <span className="text-purple-700 font-medium">
-                Тариф MAX включает White-label брендинг отчета, PDF для руководства и техническое задание подрядчику.
+                Тариф {tierConfig.name} включает White-label брендинг отчета, PDF для руководства и техническое задание подрядчику.
               </span>
             )}
           </div>
@@ -358,7 +362,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
                 <>
                   <Download className="w-4 h-4 shrink-0" />
                   <span>
-                    {currentTier === 'MAX' ? 'Скачать White-label PDF' : 'Распечатать / В PDF'}
+                    {hasWhiteLabel ? 'Скачать White-label PDF' : 'Распечатать / В PDF'}
                   </span>
                 </>
               )}

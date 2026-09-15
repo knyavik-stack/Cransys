@@ -13,7 +13,7 @@ interface DropZoneProps {
 }
 
 export function DropZone({ onAuditComplete }: DropZoneProps) {
-  const { user } = useUser();
+  const { user, incrementReportsUsed } = useUser();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState<string>('');
@@ -46,6 +46,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.report) {
+          incrementReportsUsed();
           onAuditComplete(data.report, file.name);
           return;
         }
@@ -57,6 +58,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       const parsedData: AuditInputData = parseDirectExcel(buffer);
       const report = await defaultAuditEngine.runAudit(parsedData);
       report.campaigns = parsedData.campaigns;
+      incrementReportsUsed();
       onAuditComplete(report, file.name);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Не удалось обработать файл';
@@ -84,6 +86,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.report) {
+          incrementReportsUsed();
           onAuditComplete(data.report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
           return;
         }
@@ -92,13 +95,14 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       // Fallback
       const report = await defaultAuditEngine.runAudit(mockMeblironData);
       report.campaigns = mockMeblironData.campaigns;
+      incrementReportsUsed();
       onAuditComplete(report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
     } catch {
       const report = await defaultAuditEngine.runAudit(mockMeblironData);
       report.campaigns = mockMeblironData.campaigns;
+      incrementReportsUsed();
       onAuditComplete(report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
     } finally {
-
       setIsLoading(false);
       setStatusText('');
     }

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Shield, Mail, Sparkles, CheckCircle2, Lock } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
+import { UserTier } from '@/lib/billing/tiers';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function SignInPage() {
     }, 400);
   };
 
-  const handleTestAccountLogin = (tier: 'EXPRESS' | 'PRO' | 'MAX') => {
+  const handleTestAccountLogin = (tier: UserTier) => {
     loginTestAccount(tier);
     setSuccessMsg(`Вход выполнен в тестовый аккаунт (Тариф ${tier})...`);
     setTimeout(() => {
@@ -142,27 +143,34 @@ export default function SignInPage() {
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center mb-2">
             Быстрый вход для тестирования тарифов:
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             <button
               type="button"
-              onClick={() => handleTestAccountLogin('EXPRESS')}
-              className="py-2 px-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-semibold text-xs transition-colors text-center"
+              onClick={() => handleTestAccountLogin('EXPRESS_PACK')}
+              className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-semibold text-[11px] transition-colors text-center"
             >
               Экспресс
             </button>
             <button
               type="button"
               onClick={() => handleTestAccountLogin('PRO')}
-              className="py-2 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-semibold text-xs transition-colors text-center"
+              className="py-1.5 px-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-semibold text-[11px] transition-colors text-center"
             >
               PRO
             </button>
             <button
               type="button"
               onClick={() => handleTestAccountLogin('MAX')}
-              className="py-2 px-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 font-semibold text-xs transition-colors text-center"
+              className="py-1.5 px-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 font-semibold text-[11px] transition-colors text-center"
             >
               MAX
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTestAccountLogin('CORP')}
+              className="py-1.5 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 font-semibold text-[11px] transition-colors text-center"
+            >
+              Corp
             </button>
           </div>
         </div>

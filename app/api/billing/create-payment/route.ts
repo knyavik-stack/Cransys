@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/db';
+import { UserTier, TIER_CONFIGS } from '@/lib/billing/tiers';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { tier, userId, userEmail } = body;
 
-    if (!tier || !['EXPRESS', 'PRO', 'MAX'].includes(tier)) {
+    const validTiers: string[] = ['EXPRESS_SINGLE', 'EXPRESS_PACK', 'PRO', 'MAX', 'CORP', 'EXPRESS'];
+    if (!tier || !validTiers.includes(tier)) {
       return NextResponse.json({ success: false, error: 'Неверный тариф' }, { status: 400 });
     }
 
-    const priceMap: Record<string, number> = {
-      EXPRESS: 990,
-      PRO: 2990,
-      MAX: 6990,
-    };
-
-    const amount = priceMap[tier] || 990;
+    const normalizedTier: UserTier = tier === 'EXPRESS' ? 'EXPRESS_PACK' : (tier as UserTier);
+    const tierConfig = TIER_CONFIGS[normalizedTier] || TIER_CONFIGS.PRO;
+    const amount = tierConfig.price;
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     // Логика интеграции с ЮKassa (или Sandbox)
@@ -44,9 +41,9 @@ export async function POST(req: NextRequest) {
             capture: true,
             confirmation: {
               type: 'redirect',
-              return_url: `${req.nextUrl.origin}/dashboard?payment=success&tier=${tier}`,
+              return_url: `${req.nextUrl.origin}/dashboard?payment=success&tier=${normalizedTier}`,
             },
-            description: `Оплата тарифа ${tier} в сервисе Cransys`,
+            description: `Оплата тарифа ${tierConfig.name} в сервисе Cransys`,
           }),
         });
 
@@ -62,12 +59,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       paymentId,
-      tier,
+      tier: normalizedTier,
       amount,
       currency: 'RUB',
       paymentUrl,
       sandbox: !paymentUrl,
-      message: `Тариф ${tier} успешно активирован`,
+      message: `Тариф ${tierConfig.name} успешно оформлен`,
     });
   } catch (error) {
     console.error('Payment processing error:', error);
@@ -77,3 +74,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
