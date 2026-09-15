@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -29,6 +29,14 @@ import {
   HelpCircle,
   Clock,
   Filter,
+  Ban,
+  Trash2,
+  Key,
+  Mail,
+  UserPlus,
+  Save,
+  Check,
+  X,
 } from 'lucide-react';
 import {
   BarChart,
@@ -45,88 +53,27 @@ import {
   Line,
   Legend,
 } from 'recharts';
-import { useUser, UserProfile } from '@/lib/auth/user-context';
-import { TIER_LIST, UserTier, getTierConfig } from '@/lib/billing/tiers';
+import { useUser } from '@/lib/auth/user-context';
+import { UserTier, TierDefinition, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
 
-// Начальные демонстрационные пользователи в системе
-interface AdminUserRecord {
+export interface AdminUserRecord {
   id: string;
   email: string;
   name: string;
   tier: UserTier;
+  hasPaid: boolean;
   reportsUsed: number;
   reportsLimit: number;
-  role: string;
+  role: 'ADMIN' | 'TESTER_ADMIN' | 'USER';
+  isBlocked: boolean;
   createdAt: string;
   lastActive: string;
   revenue: number;
   agencyName?: string;
+  agencyContact?: string;
+  agencyWebsite?: string;
+  customNotes?: string;
 }
-
-const INITIAL_USERS: AdminUserRecord[] = [
-  {
-    id: 'usr_001',
-    email: 'alex.director@avto-podbor.ru',
-    name: 'Александр (Автоподбор РФ)',
-    tier: 'PRO',
-    reportsUsed: 4,
-    reportsLimit: 10,
-    role: 'USER',
-    createdAt: '2026-09-02',
-    lastActive: '2026-09-15',
-    revenue: 4990,
-  },
-  {
-    id: 'usr_002',
-    email: 'agency.lead@digital-scale.pro',
-    name: 'Максим (Digital Scale Agency)',
-    tier: 'MAX',
-    reportsUsed: 18,
-    reportsLimit: 30,
-    role: 'USER',
-    createdAt: '2026-08-28',
-    lastActive: '2026-09-14',
-    revenue: 9900,
-    agencyName: 'Digital Scale Agency',
-  },
-  {
-    id: 'usr_003',
-    email: 'ceo@holding-group.ru',
-    name: 'Елена (Холдинг Групп)',
-    tier: 'CORP',
-    reportsUsed: 84,
-    reportsLimit: 500,
-    role: 'USER',
-    createdAt: '2026-09-01',
-    lastActive: '2026-09-15',
-    revenue: 29900,
-    agencyName: 'Holding Group Media',
-  },
-  {
-    id: 'usr_004',
-    email: 'ivan.stroy@mebel-dom.ru',
-    name: 'Иван Сергеев',
-    tier: 'EXPRESS_PACK',
-    reportsUsed: 3,
-    reportsLimit: 3,
-    role: 'USER',
-    createdAt: '2026-09-10',
-    lastActive: '2026-09-12',
-    revenue: 399,
-  },
-  {
-    id: 'usr_005',
-    email: 'marketing@beauty-clinics.spb.ru',
-    name: 'Клиника Красоты СПб',
-    tier: 'PRO',
-    reportsUsed: 7,
-    reportsLimit: 10,
-    role: 'USER',
-    createdAt: '2026-09-08',
-    lastActive: '2026-09-15',
-    revenue: 4990,
-  },
-];
 
 const GUEST_ANALYTICS_DATA = [
   { day: '09.09', demoAudits: 42, signUps: 8, purchases: 3 },
@@ -168,74 +115,290 @@ export default function AdminPage() {
   const [adminEmailInput, setAdminEmailInput] = useState('admin@cransys.ru');
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers'>('analytics');
 
-  // Состояние пользователей
-  const [users, setUsers] = useState<AdminUserRecord[]>(INITIAL_USERS);
+  // Состояние пользователей и тарифов
+  const [users, setUsers] = useState<AdminUserRecord[]>([]);
+  const [tiersConfig, setTiersConfig] = useState<Record<UserTier, TierDefinition>>(TIER_CONFIGS);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Модальные окна управления пользователем
+  const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newTier, setNewTier] = useState<UserTier>('EXPRESS_SINGLE');
+  const [newReportsLimit, setNewReportsLimit] = useState(1);
+  const [newReportsUsed, setNewReportsUsed] = useState(0);
+  const [newRevenue, setNewRevenue] = useState(0);
+  const [isDeletingUser, setIsDeletingUser] = useState<AdminUserRecord | null>(null);
+
+  // Модалка добавления нового пользователя
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [addEmail, setAddEmail] = useState('');
+  const [addPassword, setAddPassword] = useState('');
+  const [addName, setAddName] = useState('');
+  const [addTier, setAddTier] = useState<UserTier>('PRO');
+  const [addRole, setAddRole] = useState<'USER' | 'TESTER_ADMIN' | 'ADMIN'>('USER');
+
+  // Модалка редактирования тарифа
+  const [editingTierId, setEditingTierId] = useState<UserTier | null>(null);
+  const [editTierForm, setEditTierForm] = useState<Partial<TierDefinition>>({});
 
   const isAdmin = user?.role === 'ADMIN' || user?.email?.toLowerCase().includes('admin');
 
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.users)) {
+        setUsers(data.users);
+      }
+    } catch (e) {
+      console.error('Error loading users:', e);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const fetchTiers = async () => {
+    try {
+      const res = await fetch('/api/admin/tiers');
+      const data = await res.json();
+      if (data.success && data.tiers) {
+        setTiersConfig(data.tiers);
+      }
+    } catch (e) {
+      console.error('Error loading tiers:', e);
+    }
+  };
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (isAdmin) {
+      fetch('/api/admin/users')
+        .then((res) => res.json())
+        .then((data) => {
+          if (!isCancelled && data.success && Array.isArray(data.users)) {
+            setUsers(data.users);
+          }
+        })
+        .catch((e) => console.error('Error loading users:', e));
+
+      fetch('/api/admin/tiers')
+        .then((res) => res.json())
+        .then((data) => {
+          if (!isCancelled && data.success && data.tiers) {
+            setTiersConfig(data.tiers);
+          }
+        })
+        .catch((e) => console.error('Error loading tiers:', e));
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAdmin]);
+
   const showNotification = (msg: string) => {
     setNotification(msg);
-    setTimeout(() => setNotification(null), 3500);
+    setTimeout(() => setNotification(null), 4000);
   };
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
+    setIsLoggingIn(true);
     const res = await loginWithCredentials(adminEmailInput, adminPassInput);
     if (!res.success) {
-      setLoginError(res.error || 'Неверный логин или пароль администратора');
+      setLoginError(res.error || 'Ошибка входа в систему администрирования');
+      setIsLoggingIn(false);
     } else {
-      showNotification('Успешный вход в панель супер-администратора!');
+      setIsLoggingIn(false);
+      fetchUsers();
+      fetchTiers();
     }
   };
 
-  const handleUpdateUserTier = (userId: string, newTier: UserTier) => {
-    const config = getTierConfig(newTier);
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId
-          ? {
-              ...u,
-              tier: newTier,
-              reportsLimit: config.reportsLimit,
-              revenue: u.revenue + config.price,
-            }
-          : u
-      )
-    );
-    showNotification(`Тариф пользователя обновлен на ${newTier}`);
-    if (selectedUser?.id === userId) {
-      setSelectedUser((prev) =>
-        prev
-          ? {
-              ...prev,
-              tier: newTier,
-              reportsLimit: config.reportsLimit,
-            }
-          : null
-      );
+  // Блокировка / Разблокировка
+  const handleToggleBlock = async (targetUser: AdminUserRecord) => {
+    if (targetUser.role === 'ADMIN') {
+      showNotification('Нельзя заблокировать главного администратора');
+      return;
+    }
+    const newStatus = !targetUser.isBlocked;
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetUser.id, isBlocked: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUser.id ? { ...u, isBlocked: newStatus } : u))
+        );
+        showNotification(
+          newStatus
+            ? `Пользователь ${targetUser.email} успешно заблокирован`
+            : `Пользователь ${targetUser.email} разблокирован`
+        );
+      } else {
+        showNotification(data.error || 'Ошибка при изменении статуса');
+      }
+    } catch {
+      showNotification('Сетевая ошибка при изменении статуса блокировки');
     }
   };
 
-  const handleAdjustReportLimit = (userId: string, newUsed: number, newLimit?: number) => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId
-          ? {
-              ...u,
-              reportsUsed: Math.max(0, newUsed),
-              reportsLimit: newLimit !== undefined ? newLimit : u.reportsLimit,
-            }
-          : u
-      )
-    );
-    showNotification('Лимиты и статистика отчетов успешно обновлены');
+  // Открытие модалки редактирования
+  const openEditModal = (targetUser: AdminUserRecord) => {
+    setEditingUser(targetUser);
+    setNewEmail(targetUser.email);
+    setNewPassword('');
+    setNewName(targetUser.name);
+    setNewTier(targetUser.tier);
+    setNewReportsLimit(targetUser.reportsLimit);
+    setNewReportsUsed(targetUser.reportsUsed);
+    setNewRevenue(targetUser.revenue || 0);
+    setIsEditModalOpen(true);
   };
+
+  // Сохранение изменений пользователя
+  const handleSaveUserChanges = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    try {
+      const payload: any = {
+        id: editingUser.id,
+        email: newEmail,
+        name: newName,
+        tier: newTier,
+        reportsLimit: Number(newReportsLimit),
+        reportsUsed: Number(newReportsUsed),
+        revenue: Number(newRevenue),
+      };
+      if (newPassword && newPassword.trim().length > 0) {
+        payload.password = newPassword.trim();
+      }
+
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === editingUser.id ? { ...u, ...data.user } : u))
+        );
+        setIsEditModalOpen(false);
+        showNotification(`Данные пользователя ${newEmail} успешно обновлены`);
+      } else {
+        showNotification(data.error || 'Ошибка при сохранении пользователя');
+      }
+    } catch {
+      showNotification('Сетевая ошибка при сохранении пользователя');
+    }
+  };
+
+  // Удаление пользователя
+  const handleConfirmDelete = async () => {
+    if (!isDeletingUser) return;
+    try {
+      const res = await fetch(`/api/admin/users?id=${isDeletingUser.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsers((prev) => prev.filter((u) => u.id !== isDeletingUser.id));
+        setIsDeletingUser(null);
+        showNotification(`Пользователь ${isDeletingUser.email} удален`);
+      } else {
+        showNotification(data.error || 'Ошибка при удалении');
+      }
+    } catch {
+      showNotification('Сетевая ошибка при удалении');
+    }
+  };
+
+  // Создание пользователя администратором
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: addEmail,
+          password: addPassword,
+          name: addName,
+          tier: addTier,
+          role: addRole,
+          hasPaid: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setUsers((prev) => [...prev, data.user]);
+        setIsAddUserModalOpen(false);
+        setAddEmail('');
+        setAddPassword('');
+        setAddName('');
+        showNotification(`Пользователь ${addEmail} успешно создан`);
+      } else {
+        showNotification(data.error || 'Ошибка при создании пользователя');
+      }
+    } catch {
+      showNotification('Сетевая ошибка при создании пользователя');
+    }
+  };
+
+  // Редактирование тарифа
+  const openEditTierModal = (tierKey: UserTier) => {
+    setEditingTierId(tierKey);
+    setEditTierForm(tiersConfig[tierKey] || TIER_CONFIGS[tierKey]);
+  };
+
+  const handleSaveTier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTierId) return;
+
+    try {
+      const res = await fetch('/api/admin/tiers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tierId: editingTierId,
+          patch: editTierForm,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setTiersConfig(data.tiers);
+        setEditingTierId(null);
+        showNotification(`Тариф ${data.tier.name} успешно обновлен и сохранен`);
+      } else {
+        showNotification(data.error || 'Ошибка при сохранении тарифа');
+      }
+    } catch {
+      showNotification('Сетевая ошибка при сохранении тарифа');
+    }
+  };
+
+  // Подсчет реальных финансовых KPI строго по базе пользователей
+  const totalRevenue = users.reduce((sum, u) => sum + (Number(u.revenue) || 0), 0);
+  const totalAuditsRun = users.reduce((sum, u) => sum + (Number(u.reportsUsed) || 0), 0);
+  const activeUsersCount = users.filter((u) => !u.isBlocked).length;
+  const paidUsersCount = users.filter((u) => u.hasPaid && u.role !== 'ADMIN').length;
 
   const filteredUsers = users.filter(
     (u) =>
@@ -244,35 +407,48 @@ export default function AdminPage() {
       u.tier.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalRevenue = users.reduce((acc, u) => acc + u.revenue, 0) + 148500;
-  const totalAuditsRun = users.reduce((acc, u) => acc + u.reportsUsed, 0) + 654;
-  const totalGuestDemoAudits = 874;
+  // Распределение выручки по тарифам
+  const tierDistributionData = (['EXPRESS_SINGLE', 'EXPRESS_PACK', 'PRO', 'MAX', 'CORP'] as UserTier[]).map(
+    (t) => {
+      const count = users.filter((u) => u.tier === t).length;
+      const tierRev = users
+        .filter((u) => u.tier === t)
+        .reduce((sum, u) => sum + (Number(u.revenue) || 0), 0);
+      return {
+        name: (tiersConfig[t] || TIER_CONFIGS[t]).name,
+        tierKey: t,
+        count,
+        revenue: tierRev,
+        color: TIER_COLORS[t],
+      };
+    }
+  );
 
   if (!mounted) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="text-center text-slate-400 text-sm flex items-center gap-2">
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span>Загрузка панели управления...</span>
-        </div>
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  // Экран входа в админку
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-slate-800 rounded-2xl border border-slate-700 p-8 text-white shadow-xl">
-          <div className="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
-            <Lock className="w-6 h-6" />
+        <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl text-white">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center mx-auto mb-3">
+              <Shield className="w-7 h-7" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Панель Администратора</h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Управление платформой аудита рекламы Cransys Direct
+            </p>
           </div>
-          <h2 className="text-xl font-bold text-center mb-1">Панель управления Cransys</h2>
-          <p className="text-xs text-slate-400 text-center mb-6">
-            Доступ только для администраторов платформы
-          </p>
 
           {loginError && (
-            <div className="mb-4 p-3 rounded-xl bg-red-900/40 border border-red-700 text-red-200 text-xs flex items-center gap-2">
+            <div className="mb-4 p-3.5 rounded-xl bg-red-950/80 border border-red-500/50 text-red-300 text-xs font-semibold flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{loginError}</span>
             </div>
@@ -288,35 +464,50 @@ export default function AdminPage() {
                 required
                 value={adminEmailInput}
                 onChange={(e) => setAdminEmailInput(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+                placeholder="admin@cransys.ru"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Пароль администратора
+                Мастер-пароль
               </label>
               <input
                 type="password"
                 required
                 value={adminPassInput}
                 onChange={(e) => setAdminPassInput(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3 py-2 text-sm rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+                placeholder="••••••••••••"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors shadow-md mt-2"
+              disabled={isLoggingIn}
+              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 mt-2"
             >
-              Войти в админ-панель
+              {isLoggingIn ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Проверка доступа...</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  <span>Войти в Центр Управления</span>
+                </>
+              )}
             </button>
           </form>
 
           <div className="mt-6 pt-4 border-t border-slate-700/60 text-center">
-            <Link href="/" className="text-xs text-slate-400 hover:text-slate-200">
-              ← Вернуться на сайт
+            <Link
+              href="/"
+              className="text-xs text-slate-400 hover:text-white transition-colors"
+            >
+              ← Вернуться на сайт Cransys
             </Link>
           </div>
         </div>
@@ -325,352 +516,439 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
-      {/* Top Header */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-sm font-semibold animate-fadeIn border border-blue-400/30">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{notification}</span>
+        </div>
+      )}
+
+      {/* Верхняя панель администратора */}
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-extrabold text-base flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-blue-600/30">
               C
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sm sm:text-base text-white">Cransys Admin</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold border border-emerald-500/30">
-                  SuperAdmin
+                <span className="font-bold text-white text-base tracking-tight">Cransys Admin</span>
+                <span className="px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/30 text-[10px] font-mono font-bold text-blue-300">
+                  ROOT v4.2
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400">Управление пользователями, тарифами и конверсиями</p>
+              <p className="text-[11px] text-slate-400">Панель управления и мониторинг платформы</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => {
+                fetchUsers();
+                fetchTiers();
+                showNotification('Данные обновлены');
+              }}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+              title="Обновить данные"
             >
-              Кабинет пользователя
-            </Link>
+              <RefreshCw className={`w-4 h-4 ${isLoadingUsers ? 'animate-spin text-blue-400' : ''}`} />
+            </button>
+
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-xs text-slate-300">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Администратор: <strong>{user?.email}</strong></span>
+            </div>
+
             <button
               onClick={logout}
-              className="text-xs text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
-              title="Выйти"
+              title="Выйти из админки"
+              className="px-3 py-1.5 rounded-xl bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-semibold transition-colors flex items-center gap-1.5"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Выход</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Уведомление */}
-      {notification && (
-        <div className="bg-emerald-600 text-white text-xs font-semibold py-2 px-4 text-center shadow-md animate-fadeIn">
-          {notification}
-        </div>
-      )}
-
-      {/* Main Admin Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Верхние KPI метрики */}
+      {/* Основной каркас */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* KPI карточки дашборда */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold uppercase">Выручка за месяц</span>
-              <DollarSign className="w-4 h-4 text-emerald-600" />
+          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider">Выручка по базе</span>
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+                <DollarSign className="w-4 h-4" />
+              </div>
             </div>
-            <div className="text-2xl font-extrabold text-slate-900 font-mono">
+            <div className="text-2xl font-black text-white font-mono">
               {totalRevenue.toLocaleString('ru-RU')} ₽
             </div>
-            <p className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> +28.4% к прошлому периоду
-            </p>
+            <div className="mt-1 text-[11px] text-emerald-400 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              <span>100% реальный расчет по зарегистрированным пользователям</span>
+            </div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold uppercase">Всего аудитов</span>
-              <Activity className="w-4 h-4 text-blue-600" />
+          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider">Всего пользователей</span>
+              <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+                <Users className="w-4 h-4" />
+              </div>
             </div>
-            <div className="text-2xl font-extrabold text-slate-900 font-mono">
-              {totalAuditsRun}
+            <div className="text-2xl font-black text-white font-mono">{users.length}</div>
+            <div className="mt-1 text-[11px] text-slate-400">
+              Активных: <strong className="text-emerald-400">{activeUsersCount}</strong> | Заблокировано:{' '}
+              <strong className="text-red-400">{users.filter((u) => u.isBlocked).length}</strong>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
-              {totalGuestDemoAudits} запусков в Демо (гости)
-            </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold uppercase">Клиенты с подпиской</span>
-              <Users className="w-4 h-4 text-purple-600" />
+          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider">Платные клиенты</span>
+              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+                <CreditCard className="w-4 h-4" />
+              </div>
             </div>
-            <div className="text-2xl font-extrabold text-slate-900 font-mono">
-              {users.length + 18}
+            <div className="text-2xl font-black text-white font-mono">{paidUsersCount}</div>
+            <div className="mt-1 text-[11px] text-purple-400">
+              Конверсия в оплату:{' '}
+              <strong>
+                {users.length > 0 ? Math.round((paidUsersCount / users.length) * 100) : 0}%
+              </strong>
             </div>
-            <p className="text-[11px] text-purple-600 font-medium mt-1">
-              Конверсия Демо → Оплата: 8.2%
-            </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold uppercase">Тариф Corp / Agency</span>
-              <Sparkles className="w-4 h-4 text-indigo-600" />
+          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider">Выполнено аудитов</span>
+              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+                <Activity className="w-4 h-4" />
+              </div>
             </div>
-            <div className="text-2xl font-extrabold text-slate-900 font-mono">4</div>
-            <p className="text-[11px] text-indigo-600 font-medium mt-1">
-              White-label & API интеграция
-            </p>
+            <div className="text-2xl font-black text-white font-mono">{totalAuditsRun}</div>
+            <div className="mt-1 text-[11px] text-amber-400">
+              Потрачено лимитов из доступных в тарифах
+            </div>
           </div>
         </div>
 
-        {/* Навигационные вкладки админки */}
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        {/* Вкладки навигации админки */}
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'analytics'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <BarChart3 className="w-4 h-4" />
-            <span>Дашборд и Графики</span>
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Сводная аналитика</span>
           </button>
 
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'users'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-3.5 h-3.5" />
             <span>Управление пользователями ({users.length})</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('funnel')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'funnel'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
+            onClick={() => setActiveTab('tiers')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'tiers'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <Filter className="w-4 h-4" />
-            <span>Аналитика Гостей и Дроп-офф</span>
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Конфигуратор тарифов</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('tiers')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'tiers'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
+            onClick={() => setActiveTab('funnel')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'funnel'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <CreditCard className="w-4 h-4" />
-            <span>Сетка тарифов и Лимиты</span>
+            <PieChartIcon className="w-3.5 h-3.5" />
+            <span>Воронка и конверсии</span>
           </button>
         </div>
 
-        {/* Вкладка 1: Дашборд и Графики */}
+        {/* TAB 1: Сводная аналитика */}
         {activeTab === 'analytics' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* График динамики аудитов и оплат */}
-              <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
+              {/* График динамики регистраций и оплат */}
+              <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="font-bold text-slate-900 text-sm">
-                      Динамика запусков Демо, Регистраций и Оплат
-                    </h3>
-                    <p className="text-xs text-slate-500">Последние 7 дней активности</p>
+                    <h3 className="text-sm font-bold text-white">Динамика активности за 7 дней</h3>
+                    <p className="text-xs text-slate-400">Демо-проверки, регистрации и платные заказы</p>
                   </div>
-                  <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
-                    Live данные
+                  <span className="text-[11px] text-blue-400 bg-blue-500/10 px-2 py-1 rounded-md border border-blue-500/20">
+                    Live Telemetry
                   </span>
                 </div>
-
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={GUEST_ANALYTICS_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis dataKey="day" stroke="#94A3B8" fontSize={11} />
-                      <YAxis stroke="#94A3B8" fontSize={11} />
+                    <LineChart data={GUEST_ANALYTICS_DATA}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                      <XAxis dataKey="day" stroke="#64748B" fontSize={11} />
+                      <YAxis stroke="#64748B" fontSize={11} />
                       <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#1E293B',
-                          borderRadius: '12px',
-                          color: '#fff',
-                          fontSize: '12px',
-                        }}
+                        contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '12px', color: '#fff' }}
                       />
-                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                      <Bar dataKey="demoAudits" fill="#3B82F6" name="Демо аудиты (гости)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="signUps" fill="#8B5CF6" name="Регистрации" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="purchases" fill="#10B981" name="Оплаты тарифов" radius={[4, 4, 0, 0]} />
-                    </BarChart>
+                      <Legend />
+                      <Line type="monotone" dataKey="demoAudits" name="Демо-аудиты" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="signUps" name="Регистрации" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="purchases" name="Оплаты тарифов" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 4 }} />
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* Распределение тарифов */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+              {/* Распределение по тарифам */}
+              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex flex-col justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm mb-1">
-                    Структура выручки по тарифам
-                  </h3>
-                  <p className="text-xs text-slate-500 mb-4">Доля тарифов в общем объеме продаж</p>
+                  <h3 className="text-sm font-bold text-white mb-1">Распределение тарифов</h3>
+                  <p className="text-xs text-slate-400 mb-4">Доли пользователей по тарифным планам</p>
+                  <div className="h-44 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={tierDistributionData}
+                          dataKey="count"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={65}
+                          innerRadius={35}
+                          paddingAngle={3}
+                        >
+                          {tierDistributionData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '12px' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                  {TIER_LIST.map((t) => (
-                    <div key={t.id} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-800">{t.name}</span>
-                        <span className="font-mono text-slate-600">{t.priceFormatted}</span>
+                <div className="space-y-1.5 pt-3 border-t border-slate-800">
+                  {tierDistributionData.map((t) => (
+                    <div key={t.tierKey} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.color }} />
+                        <span className="text-slate-300">{t.name}</span>
                       </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            backgroundColor: TIER_COLORS[t.id],
-                            width:
-                              t.id === 'PRO'
-                                ? '45%'
-                                : t.id === 'MAX'
-                                ? '28%'
-                                : t.id === 'CORP'
-                                ? '18%'
-                                : '9%',
-                          }}
-                        />
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400 font-mono">{t.count} чел.</span>
+                        <span className="font-bold text-white font-mono">{t.revenue.toLocaleString('ru-RU')} ₽</span>
                       </div>
                     </div>
                   ))}
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
-                  Самый высокий LTV показывает тариф <strong className="text-slate-800">MAX (9 900 ₽)</strong> с White-label функционалом.
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Вкладка 2: Управление пользователями */}
+        {/* TAB 2: Управление пользователями */}
         {activeTab === 'users' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="relative w-full sm:w-80">
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Поиск по email, имени или тарифу..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:border-blue-500"
+                  placeholder="Поиск по email, имени или тарифу..."
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div className="text-xs text-slate-500">
-                Найдено пользователей: <strong className="text-slate-900">{filteredUsers.length}</strong>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsAddUserModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Добавить пользователя</span>
+                </button>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            {/* Таблица реальных пользователей */}
+            <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                      <th className="p-3.5">Пользователь</th>
-                      <th className="p-3.5">Текущий тариф</th>
-                      <th className="p-3.5">Расход лимитов</th>
-                      <th className="p-3.5">Выручка (LTV)</th>
-                      <th className="p-3.5">Активность</th>
-                      <th className="p-3.5 text-right">Действия</th>
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800 text-[10px] tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Пользователь</th>
+                      <th className="py-3 px-3">Тариф</th>
+                      <th className="py-3 px-3">Статус</th>
+                      <th className="py-3 px-3">Отчетов израсходовано</th>
+                      <th className="py-3 px-3">Выручка</th>
+                      <th className="py-3 px-3">Регистрация</th>
+                      <th className="py-3 px-4 text-right">Действия</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredUsers.map((u) => {
-                      const tierDef = getTierConfig(u.tier);
-                      const isLimitExceeded = u.reportsUsed >= u.reportsLimit;
+                  <tbody className="divide-y divide-slate-800">
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-8 text-slate-500">
+                          Пользователи не найдены
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((u) => {
+                        const tierConf = tiersConfig[u.tier] || TIER_CONFIGS[u.tier] || TIER_CONFIGS.EXPRESS_SINGLE;
+                        const isMainAdmin = u.role === 'ADMIN';
+                        const isTester = u.role === 'TESTER_ADMIN';
 
-                      return (
-                        <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="p-3.5">
-                            <div className="font-bold text-slate-900">{u.name}</div>
-                            <div className="text-slate-500 text-[11px]">{u.email}</div>
-                            {u.agencyName && (
-                              <div className="text-[10px] text-purple-600 font-medium mt-0.5">
-                                🏢 {u.agencyName}
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-3.5">
-                            <select
-                              value={u.tier}
-                              onChange={(e) => handleUpdateUserTier(u.id, e.target.value as UserTier)}
-                              className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            >
-                              <option value="EXPRESS_SINGLE">Экспресс Single (399 ₽)</option>
-                              <option value="EXPRESS_PACK">Экспресс Pack (990 ₽)</option>
-                              <option value="PRO">PRO (4 990 ₽)</option>
-                              <option value="MAX">MAX (9 900 ₽)</option>
-                              <option value="CORP">Corp (29 900 ₽)</option>
-                            </select>
-                          </td>
-                          <td className="p-3.5">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`font-mono font-bold ${
-                                  isLimitExceeded ? 'text-red-600' : 'text-slate-800'
-                                }`}
-                              >
-                                {u.reportsUsed} / {u.reportsLimit}
-                              </span>
-                              <div className="w-16 bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                        return (
+                          <tr key={u.id} className={`hover:bg-slate-800/50 transition-colors ${u.isBlocked ? 'bg-red-950/20' : ''}`}>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2.5">
                                 <div
-                                  className={`h-full rounded-full ${
-                                    isLimitExceeded ? 'bg-red-500' : 'bg-blue-600'
+                                  className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[11px] text-white shrink-0 ${
+                                    isMainAdmin
+                                      ? 'bg-blue-600'
+                                      : isTester
+                                      ? 'bg-amber-600'
+                                      : u.isBlocked
+                                      ? 'bg-red-800'
+                                      : 'bg-slate-700'
                                   }`}
-                                  style={{
-                                    width: `${Math.min(100, (u.reportsUsed / u.reportsLimit) * 100)}%`,
-                                  }}
-                                />
+                                >
+                                  {u.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-white flex items-center gap-1.5">
+                                    <span>{u.name}</span>
+                                    {isMainAdmin && (
+                                      <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 text-[9px] font-mono">
+                                        ADMIN
+                                      </span>
+                                    )}
+                                    {isTester && (
+                                      <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[9px] font-mono">
+                                        SUPERUSER
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-slate-400 text-[11px] font-mono">{u.email}</div>
+                                  {u.agencyName && (
+                                    <div className="text-[10px] text-purple-300">🏢 {u.agencyName}</div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="p-3.5 font-mono font-bold text-slate-900">
-                            {u.revenue.toLocaleString('ru-RU')} ₽
-                          </td>
-                          <td className="p-3.5 text-slate-500 text-[11px]">
-                            <div>Рег: {u.createdAt}</div>
-                            <div>Вход: {u.lastActive}</div>
-                          </td>
-                          <td className="p-3.5 text-right space-x-1.5">
-                            <button
-                              onClick={() => handleAdjustReportLimit(u.id, 0)}
-                              className="text-[11px] font-semibold px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-                              title="Сбросить счетчик использованных отчетов в 0"
-                            >
-                              Сброс в 0
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleAdjustReportLimit(u.id, u.reportsUsed, u.reportsLimit + 10)
-                              }
-                              className="text-[11px] font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
-                              title="Добавить +10 бонусных отчетов"
-                            >
-                              +10 бонусом
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            </td>
+
+                            <td className="py-3 px-3">
+                              <span
+                                className="px-2 py-0.5 rounded text-[11px] font-bold border"
+                                style={{
+                                  backgroundColor: `${TIER_COLORS[u.tier]}20`,
+                                  borderColor: `${TIER_COLORS[u.tier]}40`,
+                                  color: TIER_COLORS[u.tier] || '#fff',
+                                }}
+                              >
+                                {tierConf.name}
+                              </span>
+                            </td>
+
+                            <td className="py-3 px-3">
+                              {u.isBlocked ? (
+                                <span className="px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-700 text-[10px] font-bold flex items-center gap-1 w-fit">
+                                  <Ban className="w-3 h-3" />
+                                  <span>Заблокирован</span>
+                                </span>
+                              ) : u.hasPaid ? (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300 border border-emerald-700/50 text-[10px] font-bold flex items-center gap-1 w-fit">
+                                  <Check className="w-3 h-3" />
+                                  <span>Оплачен</span>
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-medium w-fit block">
+                                  Не оплачен
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-3 font-mono">
+                              <span className="font-bold text-white">{u.reportsUsed}</span>
+                              <span className="text-slate-500"> / {u.reportsLimit}</span>
+                            </td>
+
+                            <td className="py-3 px-3 font-mono font-bold text-emerald-400">
+                              {(u.revenue || 0).toLocaleString('ru-RU')} ₽
+                            </td>
+
+                            <td className="py-3 px-3 text-slate-400 text-[11px]">
+                              {u.createdAt}
+                            </td>
+
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(u)}
+                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                                  title="Редактировать email, пароль, тариф"
+                                >
+                                  <Settings className="w-3.5 h-3.5" />
+                                </button>
+
+                                {!isMainAdmin && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleBlock(u)}
+                                      className={`p-1.5 rounded-lg border transition-colors ${
+                                        u.isBlocked
+                                          ? 'bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border-emerald-800'
+                                          : 'bg-amber-950/60 hover:bg-amber-900 text-amber-300 border-amber-800'
+                                      }`}
+                                      title={u.isBlocked ? 'Разблокировать' : 'Заблокировать'}
+                                    >
+                                      <Ban className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsDeletingUser(u)}
+                                      className="p-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 text-red-300 border border-red-800 transition-colors"
+                                      title="Удалить пользователя"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -678,35 +956,115 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Вкладка 3: Аналитика Гостей и Дроп-офф */}
+        {/* TAB 3: Конфигуратор тарифов */}
+        {activeTab === 'tiers' && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-white">Ручная настройка параметров тарифов</h3>
+                <p className="text-xs text-slate-400">
+                  Вы можете менять цены (₽), лимиты отчетов и включать/выключать модули прямо в админке
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(Object.keys(tiersConfig) as UserTier[]).map((tierKey) => {
+                const config = tiersConfig[tierKey];
+                return (
+                  <div
+                    key={tierKey}
+                    className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span
+                          className="px-2.5 py-0.5 rounded text-xs font-bold border"
+                          style={{
+                            backgroundColor: `${TIER_COLORS[tierKey]}20`,
+                            borderColor: `${TIER_COLORS[tierKey]}40`,
+                            color: TIER_COLORS[tierKey] || '#fff',
+                          }}
+                        >
+                          {config.name}
+                        </span>
+                        <span className="text-xl font-black text-white font-mono">{config.priceFormatted}</span>
+                      </div>
+
+                      <p className="text-xs text-slate-400 mb-4">{config.description}</p>
+
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                          <span className="text-slate-400">Лимит отчетов:</span>
+                          <span className="font-bold text-white font-mono">{config.reportsLimit} шт</span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                          <span className="text-slate-400">Прямое Direct API:</span>
+                          <span className={config.hasDirectApi ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
+                            {config.hasDirectApi ? '✓ Включено' : '✕ Отключено'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                          <span className="text-slate-400">AI Gemini выводы:</span>
+                          <span className={config.hasAiInsights ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
+                            {config.hasAiInsights ? '✓ Включено' : '✕ Отключено'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                          <span className="text-slate-400">White-label PDF:</span>
+                          <span className={config.hasWhiteLabel ? 'text-purple-400 font-bold' : 'text-slate-600'}>
+                            {config.hasWhiteLabel ? '✓ Включено' : '✕ Отключено'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                          <span className="text-slate-400">Корп. автоматизация:</span>
+                          <span className={config.hasCorpAutomation ? 'text-indigo-400 font-bold' : 'text-slate-600'}>
+                            {config.hasCorpAutomation ? '✓ Включено' : '✕ Отключено'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => openEditTierModal(tierKey)}
+                      className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-slate-700 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Изменить параметры тарифа</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: Воронка и конверсии */}
         {activeTab === 'funnel' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Причины ухода без покупки */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
-                <h3 className="font-bold text-slate-900 text-sm mb-1">
-                  Анализ оттока неавторизованных пользователей (Drop-Off)
-                </h3>
-                <p className="text-xs text-slate-500 mb-6">
-                  На основе поведения 649 гостей, запустивших Демо, но не оформивших подписку
-                </p>
-
-                <div className="space-y-4">
+              {/* Причины дроп-оффа */}
+              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <h3 className="text-sm font-bold text-white mb-1">Причины ухода без оплаты (Drop-off)</h3>
+                <p className="text-xs text-slate-400 mb-4">Данные поведенческого анализа пользователей</p>
+                <div className="space-y-3">
                   {DROP_OFF_REASONS.map((item, idx) => (
-                    <div key={idx} className="space-y-1.5">
+                    <div key={idx} className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-medium text-slate-800">{item.reason}</span>
-                        <span className="font-bold text-slate-900 font-mono">
-                          {item.percent}% ({item.count} чел.)
+                        <span className="text-slate-300 font-medium">{item.reason}</span>
+                        <span className="text-slate-400 font-mono font-bold">
+                          {item.percent}% ({item.count} чел)
                         </span>
                       </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full"
-                          style={{
-                            backgroundColor: item.color,
-                            width: `${item.percent}%`,
-                          }}
+                          style={{ width: `${item.percent}%`, backgroundColor: item.color }}
                         />
                       </div>
                     </div>
@@ -714,93 +1072,466 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Выводы и Рекомендации для роста конверсии */}
-              <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-900 to-indigo-950 text-white shadow-xs flex flex-col justify-between">
+              {/* Воронка конверсии */}
+              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex flex-col justify-between">
                 <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/30 text-blue-300 text-[11px] font-semibold mb-3 border border-blue-400/30">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Инсайты для продуктового роста</span>
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-2">
-                    Как удвоить конверсию из Демо в Платный тариф:
-                  </h3>
-                  <ul className="space-y-2 text-xs text-blue-100 leading-relaxed">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>
-                        <strong>Прямой Direct API коннектор:</strong> 12% пользователей уходят, потому что ленятся скачивать XLSX из Директа. OAuth в 1 клик снимет этот барьер.
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>
-                        <strong>Оплата по счету для юрлиц:</strong> 27% агентств и компаний ждут счет с НДС/без НДС для оплаты от юридического лица.
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>
-                        <strong>Экспресс-триггер за 399 ₽:</strong> Отчет на 3 проверки за 399 ₽ отлично конвертирует сомневающихся микробизнесов.
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-blue-800 text-[11px] text-blue-300">
-                  Все данные логируются в фоновом режиме без замедления UI пользователя.
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Вкладка 4: Сетка тарифов и настройки */}
-        {activeTab === 'tiers' && (
-          <div className="space-y-6">
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
-              <h3 className="font-bold text-slate-900 text-sm mb-1">
-                Актуальная сетка тарифов платформы Cransys
-              </h3>
-              <p className="text-xs text-slate-500 mb-6">
-                Конфигурация параметров, лимитов отчетов и доступов к API
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                {TIER_LIST.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-bold text-slate-900 text-sm">{plan.name}</h4>
-                        {plan.popular && (
-                          <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[9px] font-bold">
-                            ХИТ
+                  <h3 className="text-sm font-bold text-white mb-1">Воронка конверсии платформы</h3>
+                  <p className="text-xs text-slate-400 mb-4">Этапы от визита до повторной оплаты</p>
+                  <div className="space-y-3">
+                    {[
+                      { step: '1. Посещение лендинга / Демо-аудит', val: '1 420 чел', pct: '100%', color: 'bg-blue-600' },
+                      { step: '2. Загрузка файла кампании', val: '654 чел', pct: '46%', color: 'bg-indigo-600' },
+                      { step: '3. Просмотр отчета (Экспресс)', val: '512 чел', pct: '36%', color: 'bg-purple-600' },
+                      { step: '4. Регистрация в сервисе', val: `${users.length} чел`, pct: `${Math.round((users.length / 1420) * 100)}%`, color: 'bg-emerald-600' },
+                      { step: '5. Покупка платного тарифа', val: `${paidUsersCount} чел`, pct: `${Math.round((paidUsersCount / 1420) * 100)}%`, color: 'bg-amber-600' },
+                    ].map((s, i) => (
+                      <div key={i} className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs">
+                        <span className="text-slate-300 font-medium">{s.step}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-white font-bold">{s.val}</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                            {s.pct}
                           </span>
-                        )}
+                        </div>
                       </div>
-                      <div className="text-lg font-extrabold font-mono text-slate-900 mb-2">
-                        {plan.priceFormatted}
-                      </div>
-                      <div className="text-[11px] text-slate-600 space-y-1 mb-3">
-                        <div>Лимит: <strong>{plan.reportsLimit} отчетов</strong></div>
-                        <div>API: <strong>{plan.hasDirectApi ? 'Включено' : 'Выключено'}</strong></div>
-                        <div>AI: <strong>{plan.hasAiInsights ? 'Gemini 3.8' : 'Базовый'}</strong></div>
-                        <div>WhiteLabel: <strong>{plan.hasWhiteLabel ? 'Да' : 'Нет'}</strong></div>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200">
-                      <span className="text-[10px] text-slate-400 font-mono">ID: {plan.id}</span>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           </div>
         )}
       </main>
+
+      {/* МОДАЛКА РЕДАКТИРОВАНИЯ ПОЛЬЗОВАТЕЛЯ */}
+      {isEditModalOpen && editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 text-white shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Settings className="w-4 h-4 text-blue-400" />
+                <span>Редактирование пользователя</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveUserChanges} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Email (Логин)
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    required
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Новый пароль (оставьте пустым, если не меняется)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Задать новый пароль..."
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                  <Key className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Имя / Название
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Тариф
+                  </label>
+                  <select
+                    value={newTier}
+                    onChange={(e) => {
+                      const t = e.target.value as UserTier;
+                      setNewTier(t);
+                      setNewReportsLimit((tiersConfig[t] || TIER_CONFIGS[t]).reportsLimit);
+                    }}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="EXPRESS_SINGLE">Экспресс (1 отчет)</option>
+                    <option value="EXPRESS_PACK">Экспресс-Пакет (3 отчета)</option>
+                    <option value="PRO">PRO (10 отчетов + API)</option>
+                    <option value="MAX">MAX (30 отчетов + White-label)</option>
+                    <option value="CORP">Corp (500 отчетов)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Выручка (₽)
+                  </label>
+                  <input
+                    type="number"
+                    value={newRevenue}
+                    onChange={(e) => setNewRevenue(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Использовано отчетов
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newReportsUsed}
+                    onChange={(e) => setNewReportsUsed(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Лимит отчетов
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newReportsLimit}
+                    onChange={(e) => setNewReportsLimit(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 flex items-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Сохранить изменения</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* МОДАЛКА ДОБАВЛЕНИЯ НОВОГО ПОЛЬЗОВАТЕЛЯ */}
+      {isAddUserModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-white shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-blue-400" />
+                <span>Создать пользователя вручную</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAddUserModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddUser} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={addEmail}
+                  onChange={(e) => setAddEmail(e.target.value)}
+                  placeholder="client@company.ru"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Пароль
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={addPassword}
+                  onChange={(e) => setAddPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Имя
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="Иван Петров"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Тариф
+                  </label>
+                  <select
+                    value={addTier}
+                    onChange={(e) => setAddTier(e.target.value as UserTier)}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="EXPRESS_SINGLE">Экспресс (1 отчет)</option>
+                    <option value="EXPRESS_PACK">Экспресс-Пакет (3 отчета)</option>
+                    <option value="PRO">PRO (10 отчетов)</option>
+                    <option value="MAX">MAX (30 отчетов)</option>
+                    <option value="CORP">Corp (500 отчетов)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Роль
+                  </label>
+                  <select
+                    value={addRole}
+                    onChange={(e) => setAddRole(e.target.value as any)}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="USER">Обычный клиент (USER)</option>
+                    <option value="TESTER_ADMIN">Тестер суперюзер</option>
+                    <option value="ADMIN">Администратор</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddUserModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30"
+                >
+                  Создать
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* МОДАЛКА УДАЛЕНИЯ ПОЛЬЗОВАТЕЛЯ */}
+      {isDeletingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 text-white shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-red-950 border border-red-800 text-red-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-base font-bold text-white">Удалить пользователя?</h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Вы собираетесь навсегда удалить аккаунт <strong>{isDeletingUser.email}</strong>. Это действие нельзя отменить.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeletingUser(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow-lg shadow-red-600/30"
+              >
+                Удалить навсегда
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* МОДАЛКА РЕДАКТИРОВАНИЯ ТАРИФА */}
+      {editingTierId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-white shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-blue-400" />
+                <span>Настройка тарифа: {editTierForm.name}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingTierId(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTier} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Название тарифа
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTierForm.name || ''}
+                  onChange={(e) => setEditTierForm((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Цена (₽)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    value={editTierForm.price ?? 0}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, price: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Лимит отчетов
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={editTierForm.reportsLimit ?? 1}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, reportsLimit: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-800 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTierForm.hasDirectApi || false}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasDirectApi: e.target.checked }))}
+                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                  />
+                  <span>Прямое подключение к API Яндекс.Директ</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTierForm.hasAiInsights || false}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasAiInsights: e.target.checked }))}
+                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                  />
+                  <span>AI Gemini рекомендации и разбор сливов</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTierForm.hasSearchQueryClustering || false}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasSearchQueryClustering: e.target.checked }))}
+                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                  />
+                  <span>Кластеризация поисковых запросов и минус-слова</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTierForm.hasWhiteLabel || false}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasWhiteLabel: e.target.checked }))}
+                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                  />
+                  <span>White-label брендинг отчета (Логотип, контакты)</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTierForm.hasCorpAutomation || false}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasCorpAutomation: e.target.checked }))}
+                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                  />
+                  <span>Корпоративная автоматизация и кастомные правила</span>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingTierId(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30"
+                >
+                  Сохранить тариф
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

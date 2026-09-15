@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { UserTier, TIER_CONFIGS } from '@/lib/billing/tiers';
+import { UserTier, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
+import { findUserByEmail, findUserById, updateUser } from '@/lib/db/users-store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +17,20 @@ export async function POST(req: NextRequest) {
     const amount = tierConfig.price;
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
+    // Обновляем статус пользователя в хранилище при оплате
+    if (userId || userEmail) {
+      const targetUser = userId ? findUserById(userId) : (userEmail ? findUserByEmail(userEmail) : null);
+      if (targetUser) {
+        updateUser(targetUser.id, {
+          tier: normalizedTier,
+          hasPaid: true,
+          reportsLimit: tierConfig.reportsLimit,
+          revenue: (targetUser.revenue || 0) + amount,
+          lastActive: new Date().toISOString().split('T')[0],
+        });
+      }
+    }
+
     // Логика интеграции с ЮKassa (или Sandbox)
     const yookassaShopId = process.env.YOOKASSA_SHOP_ID;
     const yookassaSecretKey = process.env.YOOKASSA_SECRET_KEY;
@@ -23,7 +38,6 @@ export async function POST(req: NextRequest) {
     let paymentUrl = null;
 
     if (yookassaShopId && yookassaSecretKey) {
-      // Боевая инициализация ЮKassa
       try {
         const authHeader = 'Basic ' + Buffer.from(`${yookassaShopId}:${yookassaSecretKey}`).toString('base64');
         const yooRes = await fetch('https://api.yookassa.ru/v3/payments', {
@@ -74,4 +88,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

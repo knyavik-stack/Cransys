@@ -23,9 +23,13 @@ export default function SignInPage() {
 
     const res = await loginWithCredentials(email, password);
     if (res.success) {
-      setSuccessMsg('Успешная авторизация! Перенаправляем в личный кабинет...');
+      setSuccessMsg('Успешная авторизация! Перенаправляем...');
       setTimeout(() => {
-        router.push('/dashboard');
+        if (email.trim().toLowerCase() === (process.env.ADMIN_EMAIL || 'admin@cransys.ru').toLowerCase()) {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       }, 500);
     } else {
       setErrorMsg(res.error || 'Ошибка входа. Проверьте введенные данные.');
@@ -45,12 +49,21 @@ export default function SignInPage() {
           <p className="text-xs text-slate-500 mb-6">{user.email}</p>
 
           <div className="flex flex-col gap-3">
-            <Link
-              href="/dashboard"
-              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-xs"
-            >
-              Перейти в Личный кабинет
-            </Link>
+            {user.role === 'ADMIN' ? (
+              <Link
+                href="/admin"
+                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-xs"
+              >
+                Перейти в Панель администратора
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard"
+                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-xs"
+              >
+                Перейти в Личный кабинет
+              </Link>
+            )}
             <button
               onClick={logout}
               className="w-full py-2 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium transition-colors"
@@ -72,7 +85,7 @@ export default function SignInPage() {
           </div>
           <h2 className="text-2xl font-bold text-slate-900">Вход в Cransys</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Для доступа к истории проверок и управления тарифами
+            Для доступа к истории проверок и функциям тарифа
           </p>
         </div>
 
@@ -109,9 +122,17 @@ export default function SignInPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Пароль
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                Пароль
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-[11px] text-blue-600 hover:text-blue-700 font-medium hover:underline"
+              >
+                Забыли пароль?
+              </Link>
+            </div>
             <div className="relative">
               <input
                 type="password"

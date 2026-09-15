@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   FileSpreadsheet,
   PlusCircle,
@@ -23,6 +24,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Zap,
+  Shield,
 } from 'lucide-react';
 import { AuditReportData } from '@/lib/audit/types';
 import { AuditResults } from '@/components/AuditResults';
@@ -43,7 +45,8 @@ interface AuditHistoryItem {
 }
 
 export default function DashboardPage() {
-  const { user, loginTestAccount, setTier, logout } = useUser();
+  const router = useRouter();
+  const { user, isTester, isAdmin, setTier, logout } = useUser();
   const [history, setHistory] = useState<AuditHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,6 +58,8 @@ export default function DashboardPage() {
   const [selectedReport, setSelectedReport] = useState<AuditReportData | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string>('');
   const [loadingReportId, setLoadingReportId] = useState<string | null>(null);
+
+  const isTesterAccount = isTester || user?.role === 'TESTER_ADMIN' || user?.email === 'test-owner@cransys-audit.ru';
 
   useEffect(() => {
     async function loadHistory() {
@@ -85,6 +90,37 @@ export default function DashboardPage() {
 
     loadHistory();
   }, [user]);
+
+  // Если администратор зашел в личный кабинет пользователя
+  if (user?.role === 'ADMIN') {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-white">
+        <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl text-center">
+          <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-7 h-7" />
+          </div>
+          <h1 className="text-xl font-bold mb-2">Вы авторизованы как Администратор</h1>
+          <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+            Главному администратору не требуется клиентский личный кабинет. Все функции управления платформой, пользователями и тарифами находятся в Центре Управления.
+          </p>
+          <div className="space-y-3">
+            <Link
+              href="/admin"
+              className="block w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-colors shadow-lg shadow-blue-600/30"
+            >
+              Перейти в Панель администратора
+            </Link>
+            <button
+              onClick={logout}
+              className="block w-full py-2 px-4 rounded-xl border border-slate-700 hover:bg-slate-700 text-slate-400 text-xs font-semibold transition-colors"
+            >
+              Выйти из аккаунта
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleOpenReport = async (item: AuditHistoryItem) => {
     setLoadingReportId(item.id);
@@ -200,7 +236,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500">
-                  Сохраненные отчеты, динамика индекса здоровья и остаток лимита проверок
+                  Сохраненные отчеты, динамика индекса здоровья и остаток лимита проверок ({user?.reportsUsed || 0} из {user?.reportsLimit || 1})
                 </p>
               </div>
 
@@ -226,23 +262,23 @@ export default function DashboardPage() {
                     className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
                   >
                     <CreditCard className="w-3.5 h-3.5" />
-                    <span>Сменить тариф</span>
+                    <span>{user.hasPaid ? 'Сменить тариф' : 'Оформить тариф'}</span>
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Тестовый переключатель всех 5 тарифов (для быстрой проверки) */}
-            {user && (
-              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-amber-600 shrink-0" />
+            {/* Тестовый переключатель всех 5 тарифов (ТОЛЬКО для тестового суперюзера) */}
+            {isTesterAccount && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <Crown className="w-5 h-5 text-amber-600 shrink-0" />
                   <div>
                     <span className="text-xs font-bold text-amber-900 block">
-                      Режим тестирования тарифов (Sandbox):
+                      Режим тестирования тарифов (Суперюзер / 0 ₽ Sandbox):
                     </span>
                     <span className="text-[11px] text-amber-700">
-                      Переключайте уровни для мгновенной проверки ограничений UI и API
+                      Переключайте уровни для мгновенной проверки UI, лимитов и API без оплаты
                     </span>
                   </div>
                 </div>
@@ -257,16 +293,16 @@ export default function DashboardPage() {
                       { id: 'CORP' as UserTier, label: 'Corp (500)', limit: '500 шт' },
                     ] as const
                   ).map((t) => {
-                    const isActive = user.tier === t.id;
+                    const isActive = user?.tier === t.id;
                     return (
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setTier(t.id)}
+                        onClick={() => setTier(t.id, true)}
                         className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
                           isActive
                             ? 'bg-amber-800 text-white shadow-xs'
-                            : 'bg-white text-slate-700 hover:bg-amber-100 border border-amber-200'
+                            : 'bg-white text-slate-700 hover:bg-amber-100 border border-amber-300'
                         }`}
                       >
                         {t.label}
@@ -321,191 +357,153 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="shrink-0 self-stretch sm:self-auto flex sm:block">
-                  {getTierConfig(user?.tier).hasDirectApi ? (
-                    <button
-                      type="button"
-                      onClick={() => alert('API Яндекс.Директа готово к авторизации. Шаг 8 подключения OAuth активен!')}
-                      className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>Подключить кабинет Директа</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsPricingModalOpen(true)}
-                      className="w-full sm:w-auto px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <CreditCard className="w-3.5 h-3.5" />
-                      <span>Перейти на PRO за 2 990 ₽</span>
-                    </button>
-                  )}
-                </div>
+                {!getTierConfig(user?.tier).hasDirectApi && (
+                  <button
+                    type="button"
+                    onClick={() => setIsPricingModalOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all shrink-0 shadow-xs"
+                  >
+                    Подключить Direct API в PRO
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Сводные карточки и расход лимитов */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Лимит отчетов */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Лимит отчетов
-                  </span>
-                  <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
-                    {user ? `${user.reportsUsed} / ${user.reportsLimit}` : '0 / 1'}
-                  </span>
+            {/* Карточки метрик */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between text-slate-500 mb-2">
+                  <span className="text-xs font-medium uppercase tracking-wider">Всего проверок</span>
+                  <FileSpreadsheet className="w-4 h-4 text-blue-600" />
                 </div>
-                <div className="mt-3">
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`h-2 rounded-full transition-all ${
-                        user && user.reportsUsed >= user.reportsLimit ? 'bg-red-500' : 'bg-blue-600'
-                      }`}
-                      style={{
-                        width: `${Math.min(100, ((user?.reportsUsed || 0) / (user?.reportsLimit || 1)) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] text-slate-500 mt-2">
-                    <span>
-                      Осталось: <strong className="text-slate-900">{Math.max(0, (user?.reportsLimit || 1) - (user?.reportsUsed || 0))}</strong> отчетов
-                    </span>
-                    <button
-                      onClick={() => setIsPricingModalOpen(true)}
-                      className="text-blue-600 hover:text-blue-700 font-semibold"
-                    >
-                      Пополнить
-                    </button>
-                  </div>
+                <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                  {history.length > 0 ? history.length : user?.reportsUsed || 0}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Лимит тарифа: {user?.reportsLimit || 1} шт.
                 </div>
               </div>
 
-              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Всего проверок
-                </span>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-extrabold font-mono text-slate-900">
-                    {history.length}
-                  </span>
-                  <span className="text-xs text-slate-500">выгрузок в базе</span>
-                </div>
-              </div>
-
-              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
-                    Обнаружено сливов
-                  </span>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between text-slate-500 mb-2">
+                  <span className="text-xs font-medium uppercase tracking-wider">Обнаружено потерь</span>
                   <Flame className="w-4 h-4 text-red-500" />
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-extrabold font-mono text-red-600">
-                    {totalLossPrevented.toLocaleString('ru-RU')} ₽
-                  </span>
+                <div className="text-2xl font-extrabold text-red-600 font-mono">
+                  {totalLossPrevented.toLocaleString('ru-RU')} ₽
                 </div>
+                <div className="text-xs text-slate-400 mt-1">По всем загруженным отчетам</div>
               </div>
 
-              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
-                    Хранилище аудитов
-                  </span>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex items-center justify-between text-slate-500 mb-2">
+                  <span className="text-xs font-medium uppercase tracking-wider">Безопасность</span>
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-sm sm:text-base font-bold text-slate-900">152-ФЗ Облако</span>
-                  <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                    Изолировано
-                  </span>
-                </div>
+                <div className="text-sm font-bold text-slate-800 mt-1">152-ФЗ Соответствие</div>
+                <div className="text-xs text-slate-400 mt-1">Обезличенные данные</div>
               </div>
             </div>
 
-
-            {/* Список аудитов */}
+            {/* Таблица истории проверок */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-base font-bold text-slate-900">Сохраненные выгрузки</h2>
-                <span className="text-xs text-slate-500 font-mono">
-                  Обновлено: {new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+              <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900">История аудитов</h3>
+                  <p className="text-xs text-slate-400">Нажмите на отчет, чтобы открыть детализацию</p>
+                </div>
+                <span className="text-xs text-slate-500">{history.length} записей</span>
               </div>
 
               {isLoading ? (
-                <div className="p-12 text-center text-slate-400">
-                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                  <span className="text-xs">Загрузка истории из базы...</span>
+                <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span>Загрузка истории аудитов...</span>
                 </div>
               ) : history.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 space-y-3">
-                  <FileSpreadsheet className="w-10 h-10 text-slate-300 mx-auto" />
-                  <p className="text-sm font-medium">История проверок пока пуста</p>
+                <div className="py-12 text-center text-slate-400 text-xs space-y-3">
+                  <FileSpreadsheet className="w-8 h-8 mx-auto text-slate-300" />
+                  <p>В вашем аккаунте пока нет сохраненных проверок.</p>
                   <Link
                     href="/"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-colors shadow-xs"
                   >
-                    <span>Загрузить первый отчет</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    Запустить первую проверку
                   </Link>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
-                  {history.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                          <FileSpreadsheet className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-slate-900 text-sm">{item.fileName}</h3>
-                          <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5 text-slate-400" />
-                              {new Date(item.createdAt).toLocaleDateString('ru-RU')}
-                            </span>
-                            <span>•</span>
-                            <span className="font-semibold text-slate-700">
-                              Расход: {item.totalSpendRub?.toLocaleString('ru-RU')} ₽
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                        <div className="text-right">
-                          <div className="text-xs text-slate-500 font-medium">Слив бюджета</div>
-                          <div className="font-mono font-bold text-red-600 text-sm">
-                            {item.totalLossRub?.toLocaleString('ru-RU')} ₽
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <div className="text-xs text-slate-500 font-medium">Здоровье</div>
-                          <div
-                            className={`font-mono font-bold text-sm ${
-                              (item.overallScore || 0) < 60 ? 'text-amber-600' : 'text-emerald-600'
-                            }`}
-                          >
-                            {item.overallScore || 0}/100
-                          </div>
-                        </div>
-
-                        <button
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-600">
+                    <thead className="bg-slate-50 text-slate-700 uppercase font-semibold border-b border-slate-200/80">
+                      <tr>
+                        <th className="py-3 px-4">Файл кампании</th>
+                        <th className="py-3 px-4">Дата проверки</th>
+                        <th className="py-3 px-4">Индекс здоровья</th>
+                        <th className="py-3 px-4">Слив бюджета</th>
+                        <th className="py-3 px-4 text-right">Действие</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {history.map((item) => (
+                        <tr
+                          key={item.id}
                           onClick={() => handleOpenReport(item)}
-                          disabled={loadingReportId === item.id}
-                          className="px-3.5 py-1.5 rounded-lg border border-slate-200 hover:bg-white text-slate-700 text-xs font-semibold transition-colors shadow-2xs hover:border-blue-300"
+                          className="hover:bg-slate-50/80 cursor-pointer transition-colors"
                         >
-                          {loadingReportId === item.id ? 'Загрузка...' : 'Открыть'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                          <td className="py-3.5 px-4 font-semibold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <FileSpreadsheet className="w-4 h-4 text-blue-600 shrink-0" />
+                              <span className="max-w-[200px] sm:max-w-xs truncate">{item.fileName}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 font-mono">
+                            {new Date(item.createdAt).toLocaleDateString('ru-RU', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="py-3.5 px-4 font-mono font-bold">
+                            {item.overallScore !== null ? (
+                              <span
+                                className={`px-2 py-0.5 rounded text-[11px] ${
+                                  item.overallScore < 50
+                                    ? 'bg-red-50 text-red-700'
+                                    : item.overallScore < 80
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'bg-emerald-50 text-emerald-700'
+                                }`}
+                              >
+                                {item.overallScore}/100
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 font-mono font-bold text-red-600">
+                            {item.totalLossRub !== null ? `${item.totalLossRub.toLocaleString('ru-RU')} ₽` : '—'}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <button
+                              disabled={loadingReportId === item.id}
+                              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-semibold"
+                            >
+                              {loadingReportId === item.id ? (
+                                <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <>
+                                  <span>Открыть</span>
+                                  <ArrowUpRight className="w-3.5 h-3.5" />
+                                </>
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

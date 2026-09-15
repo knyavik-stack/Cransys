@@ -2,15 +2,16 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ShieldCheck, Activity, History, LogIn, LogOut, Sparkles, CreditCard } from 'lucide-react';
+import { ShieldCheck, Activity, History, LogIn, LogOut, Sparkles, CreditCard, Shield } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
 import { PricingModal } from '@/components/PricingModal';
 import { getTierConfig } from '@/lib/billing/tiers';
 
 export function Header() {
-  const { user, loginTestAccount, logout } = useUser();
+  const { user, logout } = useUser();
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const tierConfig = getTierConfig(user?.tier);
+  const isAdmin = user?.role === 'ADMIN';
 
   return (
     <>
@@ -46,19 +47,32 @@ export function Header() {
                 <span>Тарифы</span>
               </button>
 
-              <Link
-                id="header-history-link"
-                href="/dashboard"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-900 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
-              >
-                <History className="w-3.5 h-3.5 text-slate-500" />
-                <span className="hidden sm:inline">Кабинет</span>
-              </Link>
+              {isAdmin ? (
+                <Link
+                  id="header-admin-link"
+                  href="/admin"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 sm:px-3 py-1.5 rounded-lg border border-blue-200 transition-colors"
+                >
+                  <Shield className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Панель Admin</span>
+                </Link>
+              ) : (
+                <Link
+                  id="header-history-link"
+                  href="/dashboard"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-900 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  <History className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden sm:inline">Кабинет</span>
+                </Link>
+              )}
 
               {user ? (
                 <div className="flex items-center gap-1.5">
                   <div
-                    onClick={() => setIsPricingOpen(true)}
+                    onClick={() => {
+                      if (!isAdmin) setIsPricingOpen(true);
+                    }}
                     className="cursor-pointer hidden md:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs hover:border-blue-300 transition-colors"
                     title={`Тариф: ${tierConfig.name}. Использовано ${user.reportsUsed} из ${user.reportsLimit} отчетов.`}
                   >
@@ -113,5 +127,3 @@ export function Header() {
     </>
   );
 }
-
-
