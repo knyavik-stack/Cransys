@@ -4,7 +4,8 @@ import React, { useState, useRef } from 'react';
 import { UploadCloud, FileSpreadsheet, Sparkles, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
 import { mockMeblironData } from '@/tests/fixtures/mebliron';
 import { defaultAuditEngine } from '@/lib/audit/engine';
-import { AuditReportData } from '@/lib/audit/types';
+import { AuditReportData, AuditInputData } from '@/lib/audit/types';
+import { parseDirectExcel } from '@/lib/parser/excel-parser';
 
 interface DropZoneProps {
   onAuditComplete: (report: AuditReportData, sourceName: string) => void;
@@ -16,17 +17,32 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const processData = async (fileName: string, isDemo = false) => {
+  const processFile = async (file: File) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Запуск реального пайплайна движка аудита
-      // В демо-режиме или при загрузке используется валидированный контракт данных
+      const buffer = await file.arrayBuffer();
+      const parsedData: AuditInputData = parseDirectExcel(buffer);
+      const report = await defaultAuditEngine.runAudit(parsedData);
+      onAuditComplete(report, file.name);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Ошибка при анализе файла';
+      setError(`${msg}. Проверьте, что в отчете Яндекс.Директа есть столбцы «Кампания» и «Расход».`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLoadDemo = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
       const report = await defaultAuditEngine.runAudit(mockMeblironData);
-      onAuditComplete(report, fileName);
+      onAuditComplete(report, 'mebliron_feb_jul_2026.xlsx (Эталонный кейс)');
     } catch {
-      setError('Ошибка при анализе файла. Убедитесь, что вы загружаете корректный отчет Яндекс.Директ (XLSX/CSV).');
+      setError('Не удалось загрузить демонстрационные данные.');
     } finally {
       setIsLoading(false);
     }
@@ -53,19 +69,15 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
         setError('Пожалуйста, загрузите файл выгрузки Яндекс.Директ в формате .xlsx или .csv');
         return;
       }
-      await processData(file.name);
+      await processFile(file);
     }
   };
 
   const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      await processData(file.name);
+      await processFile(file);
     }
-  };
-
-  const handleLoadDemo = async () => {
-    await processData('mebliron_feb_jul_2026.xlsx', true);
   };
 
   return (
