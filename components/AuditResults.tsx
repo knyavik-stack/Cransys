@@ -13,7 +13,9 @@ import {
   Sparkles,
   FileText,
   RotateCcw,
+  ClipboardList,
 } from 'lucide-react';
+import { ContractorTaskModal } from './ContractorTaskModal';
 
 interface AuditResultsProps {
   report: AuditReportData;
@@ -24,6 +26,7 @@ interface AuditResultsProps {
 export function AuditResults({ report, sourceName, onReset }: AuditResultsProps) {
   const [selectedTier, setSelectedTier] = useState<'EXPRESS' | 'PRO' | 'MAX'>('EXPRESS');
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
   const flaggedRules = report.rules.filter((r) => r.flagged);
   const passedRules = report.rules.filter((r) => !r.flagged);
@@ -58,7 +61,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
             type="button"
             id="reset-audit-btn"
             onClick={onReset}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+            className="print:hidden inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Проверить другой отчет</span>
@@ -122,7 +125,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
 
       {/* Тарифная плашка переключения */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="print:hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
             <h3 className="text-lg font-bold text-slate-900">Уровень детализации отчета</h3>
             <p className="text-xs text-slate-500">
@@ -260,7 +263,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
         </div>
 
         {/* Действия и генерация отчетов */}
-        <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="print:hidden mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs text-slate-500">
             {selectedTier === 'EXPRESS' ? (
               <span>В экспресс-отчете показаны только первичные факты сливов.</span>
@@ -275,7 +278,17 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
             )}
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <button
+              type="button"
+              id="open-task-btn"
+              onClick={() => setIsTaskModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 font-semibold text-sm transition-all"
+            >
+              <ClipboardList className="w-4 h-4 text-blue-600" />
+              <span>Сформировать ТЗ подрядчику</span>
+            </button>
+
             <button
               type="button"
               id="download-report-btn"
@@ -292,7 +305,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
                 <>
                   <Download className="w-4 h-4" />
                   <span>
-                    {selectedTier === 'EXPRESS' ? 'Распечатать Экспресс-отчет' : 'Скачать PDF-отчет'}
+                    {selectedTier === 'EXPRESS' ? 'Распечатать / Сохранить в PDF' : 'Скачать PDF-отчет'}
                   </span>
                 </>
               )}
@@ -300,6 +313,14 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
           </div>
         </div>
       </div>
+
+      {/* Модальное окно ТЗ подрядчику */}
+      <ContractorTaskModal
+        report={report}
+        sourceName={sourceName}
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+      />
     </div>
   );
 }

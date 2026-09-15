@@ -23,27 +23,31 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <Header />
+    <div className="min-h-screen flex flex-col bg-slate-50 print:bg-white print:p-0">
+      <div className="print:hidden">
+        <Header />
+      </div>
 
-      <main className="flex-1">
+      <main className="flex-1 print:p-0">
         {/* Hero Section */}
-        <section id="audit-section" className="pt-10 sm:pt-16 pb-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-5">
-              <Zap className="w-3.5 h-3.5" />
-              <span>Движок аудита Яндекс.Директ 2026</span>
+        <section id="audit-section" className="pt-10 sm:pt-16 pb-12 px-4 sm:px-6 lg:px-8 print:p-0">
+          {!activeReport && (
+            <div className="max-w-4xl mx-auto text-center mb-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-5">
+                <Zap className="w-3.5 h-3.5" />
+                <span>Движок аудита Яндекс.Директ 2026</span>
+              </div>
+
+              <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-tight mb-5">
+                Аудит рекламы Яндекс.Директ{' '}
+                <span className="text-blue-600">за 2 минуты</span>
+              </h1>
+
+              <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                Бесплатный независимый экспресс-анализ выгрузки: узнайте, сколько бюджета сливается в сетях (РСЯ), на неэффективных смартфонах и в автостратегиях без конверсий.
+              </p>
             </div>
-
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-tight mb-5">
-              Аудит рекламы Яндекс.Директ{' '}
-              <span className="text-blue-600">за 2 минуты</span>
-            </h1>
-
-            <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Бесплатный независимый экспресс-анализ выгрузки: узнайте, сколько бюджета сливается в сетях (РСЯ), на неэффективных смартфонах и в автостратегиях без конверсий.
-            </p>
-          </div>
+          )}
 
           {/* Интерактивная зона: либо Drop-Zone, либо Результаты аудита */}
           {!activeReport ? (
@@ -119,7 +123,9 @@ export default function HomePage() {
         )}
       </main>
 
-      <Footer />
+      <div className="print:hidden">
+        <Footer />
+      </div>
     </div>
   );
 }
