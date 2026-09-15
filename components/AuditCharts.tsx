@@ -87,34 +87,34 @@ export function AuditCharts({ report }: AuditChartsProps) {
   const extraLeadsMax = Math.max(1, Math.ceil(redirectedBudget / (estimatedCpa * 0.8)));
 
   return (
-    <div className="space-y-8 mt-8">
+    <div className="space-y-6 sm:space-y-8 mt-6 sm:mt-8">
       {/* Секция: Где сливаются деньги и распределение каналов */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* График 1: Круговая диаграмма каналов */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h4 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
                 <span>Каналы распределения бюджета</span>
               </h4>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100">
                 {Math.round((report.totalLossRub / (report.totalSpendRub || 1)) * 100)}% в зоне риска
               </span>
             </div>
-            <p className="text-xs text-slate-500 mb-6">
-              Соотношение эффективного расхода к сливу бюджета в нецелевых сетях и площадках
+            <p className="text-xs text-slate-500 mb-4">
+              Соотношение эффективного расхода к сливу бюджета в нецелевых сетях
             </p>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-56 sm:h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={channelData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={65}
-                  outerRadius={95}
+                  innerRadius={45}
+                  outerRadius={75}
                   paddingAngle={4}
                   dataKey="value"
                 >
@@ -130,16 +130,16 @@ export function AuditCharts({ report }: AuditChartsProps) {
                   contentStyle={{
                     borderRadius: '12px',
                     borderColor: '#E2E8F0',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                   }}
                 />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
             <span className="text-slate-500">Точный слив в сетях:</span>
             <span className="font-mono font-bold text-red-600">
               {Math.round(rsyaSpend).toLocaleString('ru-RU')} ₽
@@ -148,27 +148,27 @@ export function AuditCharts({ report }: AuditChartsProps) {
         </div>
 
         {/* График 2: Эффективность по типам устройств */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>Дисбаланс устройств (Смартфоны vs ПК)</span>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h4 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>Дисбаланс устройств</span>
               </h4>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                 Мобильный перекос
               </span>
             </div>
-            <p className="text-xs text-slate-500 mb-6">
-              Сравнение суммы затрат на устройства с количеством реальных заявок/конверсий
+            <p className="text-xs text-slate-500 mb-4">
+              Сравнение суммы затрат на устройства с количеством конверсий
             </p>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-56 sm:h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={deviceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748B' }} />
-                <YAxis yAxisId="left" orientation="left" stroke="#3B82F6" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="right" orientation="right" stroke="#10B981" tick={{ fontSize: 11 }} />
+              <BarChart data={deviceData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748B' }} />
+                <YAxis yAxisId="left" orientation="left" stroke="#3B82F6" tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="right" orientation="right" stroke="#10B981" tick={{ fontSize: 10 }} />
                 <Tooltip
                   formatter={(value: unknown, name: unknown) => [
                     name === 'Расход' ? `${(Number(value) || 0).toLocaleString('ru-RU')} ₽` : `${Number(value) || 0} шт.`,
@@ -177,50 +177,50 @@ export function AuditCharts({ report }: AuditChartsProps) {
                   contentStyle={{
                     borderRadius: '12px',
                     borderColor: '#E2E8F0',
-                    fontSize: '12px',
+                    fontSize: '11px',
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Bar yAxisId="left" dataKey="Расход" fill="#EF4444" radius={[6, 6, 0, 0]} barSize={38} />
-                <Bar yAxisId="right" dataKey="Конверсии" fill="#10B981" radius={[6, 6, 0, 0]} barSize={38} />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Bar yAxisId="left" dataKey="Расход" fill="#EF4444" radius={[6, 6, 0, 0]} barSize={32} />
+                <Bar yAxisId="right" dataKey="Конверсии" fill="#10B981" radius={[6, 6, 0, 0]} barSize={32} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
             <span className="text-slate-500">Вывод аудита:</span>
-            <span className="text-slate-900 font-medium">Слив бюджета на неадаптированных смартфонах</span>
+            <span className="text-slate-900 font-medium truncate max-w-[200px] sm:max-w-none">Слив на неадаптированных смартфонах</span>
           </div>
         </div>
       </div>
 
-      {/* Интерактивный симулятор: "Что если перераспределить сливаемый бюджет" (Светлая тема) */}
-      <div className="bg-gradient-to-br from-blue-50/60 via-white to-indigo-50/40 p-6 sm:p-8 rounded-2xl border border-blue-100 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-200">
+      {/* Интерактивный симулятор: "Что если перераспределить сливаемый бюджет" */}
+      <div className="bg-gradient-to-br from-blue-50/60 via-white to-indigo-50/40 p-4 sm:p-6 lg:p-8 rounded-2xl border border-blue-100 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100/80 text-blue-800 text-xs font-semibold mb-3 border border-blue-200">
-              <Sliders className="w-3.5 h-3.5 text-blue-600" />
-              <span>Интерактивный калькулятор окупаемости</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100/80 text-blue-800 text-xs font-semibold mb-2 border border-blue-200">
+              <Sliders className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span>Калькулятор окупаемости</span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">
               Сколько заявок вы получите при остановке слива?
             </h3>
-            <p className="text-sm text-slate-600 mt-1 max-w-xl">
-              Двигайте ползунок: симулятор покажет, какой прирост клиентов принесет перенос сливаемых денег в чистый Поиск
+            <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-xl">
+              Двигайте ползунок: симулятор покажет прирост клиентов от переноса бюджета в чистый Поиск
             </p>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-blue-200/80 shadow-xs text-right min-w-[220px]">
-            <span className="text-xs text-slate-500 block mb-1">Сумма к спасению:</span>
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-blue-200/80 shadow-xs text-left md:text-right w-full md:w-auto">
+            <span className="text-xs text-slate-500 block mb-0.5">Сумма к спасению:</span>
             <span className="text-2xl sm:text-3xl font-mono font-extrabold text-emerald-600">
               {redirectedBudget.toLocaleString('ru-RU')} ₽
             </span>
           </div>
         </div>
 
-        <div className="py-6">
+        <div className="py-5">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-2">
-            <span>Доля перераспределения бюджета:</span>
+            <span>Доля перераспределения:</span>
             <span className="text-blue-600 font-mono text-sm font-bold">{reallocatePercent}%</span>
           </div>
           <input
@@ -233,54 +233,55 @@ export function AuditCharts({ report }: AuditChartsProps) {
             onChange={(e) => setReallocatePercent(Number(e.target.value))}
             className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
           />
-          <div className="flex justify-between text-[11px] text-slate-500 mt-2 font-medium">
-            <span>20% (Осторожный тест)</span>
+          <div className="flex justify-between text-[10px] sm:text-[11px] text-slate-500 mt-2 font-medium">
+            <span>20% (Тест)</span>
             <span>50% (Баланс)</span>
-            <span>100% (Полная остановка сливов)</span>
+            <span>100% (Стоп сливов)</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-          <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-1">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
             <span className="text-xs text-slate-500 uppercase tracking-wider block mb-1 font-medium">
-              Дополнительные заявки
+              Доп. заявки
             </span>
-            <div className="text-2xl font-bold text-slate-900 font-mono flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 font-mono flex items-center gap-1.5">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 shrink-0" />
               <span>
                 +{extraLeadsMin} ... +{extraLeadsMax} шт.
               </span>
             </div>
             <span className="text-[11px] text-slate-500 mt-1 block">
-              В целевой нише без увеличения бюджета
+              В целевой нише без доп. бюджета
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
             <span className="text-xs text-slate-500 uppercase tracking-wider block mb-1 font-medium">
-              Прогноз снижения стоимости лида
+              Снижение цены лида (CPA)
             </span>
-            <div className="text-2xl font-bold text-blue-600 font-mono">
+            <div className="text-xl sm:text-2xl font-bold text-blue-600 font-mono">
               -35% ... -60%
             </div>
             <span className="text-[11px] text-slate-500 mt-1 block">
-              За счет отсечения нецелевых кликов
+              За счет отсечения мусора
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+          <div className="p-3.5 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
             <span className="text-xs text-slate-500 uppercase tracking-wider block mb-1 font-medium">
               Экономия в год
             </span>
-            <div className="text-2xl font-bold text-emerald-600 font-mono">
+            <div className="text-xl sm:text-2xl font-bold text-emerald-600 font-mono">
               {(redirectedBudget * 12).toLocaleString('ru-RU')} ₽
             </div>
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Деньги остаются в обороте бизнеса
+              Остается в обороте бизнеса
             </span>
           </div>
         </div>
       </div>
+
 
       {/* AI-Анализ от Gemini (если сгенерирован) */}
       {report.aiAnalysis && (

@@ -8,7 +8,7 @@ import { useUser } from '@/lib/auth/user-context';
 
 export default function SignInPage() {
   const router = useRouter();
-  const { user, login, loginDemo, logout } = useUser();
+  const { user, login, loginTestAccount, logout } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,9 +28,9 @@ export default function SignInPage() {
     }, 400);
   };
 
-  const handleDemoLogin = () => {
-    loginDemo();
-    setSuccessMsg('Вход выполнен как Демо-собственник (Меблирон)...');
+  const handleTestAccountLogin = (tier: 'EXPRESS' | 'PRO' | 'MAX') => {
+    loginTestAccount(tier);
+    setSuccessMsg(`Вход выполнен в тестовый аккаунт (Тариф ${tier})...`);
     setTimeout(() => {
       router.push('/dashboard');
     }, 500);
@@ -138,14 +138,34 @@ export default function SignInPage() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleDemoLogin}
-          className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-medium text-xs flex items-center justify-center gap-2 transition-colors mb-6"
-        >
-          <Sparkles className="w-4 h-4 text-amber-600" />
-          <span>Войти как Демо-собственник (Меблирон)</span>
-        </button>
+        <div className="space-y-2 mb-6">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center mb-2">
+            Быстрый вход для тестирования тарифов:
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => handleTestAccountLogin('EXPRESS')}
+              className="py-2 px-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-semibold text-xs transition-colors text-center"
+            >
+              Экспресс
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTestAccountLogin('PRO')}
+              className="py-2 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-semibold text-xs transition-colors text-center"
+            >
+              PRO
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTestAccountLogin('MAX')}
+              className="py-2 px-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 font-semibold text-xs transition-colors text-center"
+            >
+              MAX
+            </button>
+          </div>
+        </div>
 
         <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-100 text-[11px] text-blue-900 flex items-start gap-2.5 mb-6">
           <Shield className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />

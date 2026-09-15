@@ -1,3 +1,5 @@
+import { SearchQueryItem, SearchQueryAiReport } from '../ai/search-query-analyst';
+
 export type RuleSeverity = 'CRITICAL' | 'WARNING' | 'INFO';
 
 export interface RuleResult {
@@ -31,6 +33,7 @@ export interface AuditInputData {
   totalSpendRub: number;
   totalConversions: number;
   currency?: string;
+  searchQueries?: SearchQueryItem[];
   period?: {
     from: string;
     to: string;
@@ -69,6 +72,7 @@ export interface AuditReportData {
   generatedAt: string;
   campaigns?: CampaignData[];
   aiAnalysis?: AiAnalysisData;
+  searchQueryAnalysis?: SearchQueryAiReport;
 }
 
 export type AuditReport = AuditReportData;
@@ -78,3 +82,4 @@ export interface IAuditRule {
   readonly name: string;
   execute(data: AuditInputData): Promise<RuleResult> | RuleResult;
 }
+

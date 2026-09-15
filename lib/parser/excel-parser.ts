@@ -217,6 +217,7 @@ export function parseDirectExcel(arrayBuffer: ArrayBuffer | Uint8Array): AuditIn
   // Расширенный словарь соответствия колонок
   let headerIndex = -1;
   let campaignColIdx = -1;
+  let queryColIdx = -1;
   let spendColIdx = -1;
   let clicksColIdx = -1;
   let impressionsColIdx = -1;
@@ -230,10 +231,22 @@ export function parseDirectExcel(arrayBuffer: ArrayBuffer | Uint8Array): AuditIn
     if (!Array.isArray(row) || row.length === 0) continue;
 
     let foundCamp = -1;
+    let foundQuery = -1;
     let foundSpend = -1;
 
     for (let c = 0; c < row.length; c++) {
       const cell = String(row[c] || '').trim().toLowerCase();
+
+      // Поисковый запрос / Условие показа
+      if (
+        cell.includes('поисков') ||
+        cell.includes('запрос') ||
+        cell.includes('search query') ||
+        cell.includes('фраза') ||
+        cell.includes('условие показа')
+      ) {
+        if (foundQuery === -1) foundQuery = c;
+      }
 
       // Кампания
       if (
@@ -308,13 +321,15 @@ export function parseDirectExcel(arrayBuffer: ArrayBuffer | Uint8Array): AuditIn
       }
     }
 
-    if (foundCamp !== -1 && foundSpend !== -1) {
+    if ((foundCamp !== -1 || foundQuery !== -1) && foundSpend !== -1) {
       headerIndex = i;
-      campaignColIdx = foundCamp;
+      campaignColIdx = foundCamp !== -1 ? foundCamp : foundQuery;
+      queryColIdx = foundQuery;
       spendColIdx = foundSpend;
       break;
     }
   }
+
 
   // Если заголовки явно не найдены, берем эвристику (колонка 0 — имя, колонка с максимальными суммами — расход)
   if (headerIndex === -1 || campaignColIdx === -1 || spendColIdx === -1) {
@@ -330,8 +345,9 @@ export function parseDirectExcel(arrayBuffer: ArrayBuffer | Uint8Array): AuditIn
     }
   }
 
-  // Агрегация кампаний
+  // Агрегация кампаний и поисковых фраз
   const campaignsMap = new Map<string, CampaignData>();
+  const searchQueriesList: { query: string; clicks: number; impressions: number; spendRub: number; conversions: number }[] = [];
   let grandTotalSpend = 0;
   let grandTotalConversions = 0;
 
@@ -353,6 +369,20 @@ export function parseDirectExcel(arrayBuffer: ArrayBuffer | Uint8Array): AuditIn
     const clicks = clicksColIdx !== -1 ? Math.round(parseNumber(row[clicksColIdx])) : 0;
     const impressions = impressionsColIdx !== -1 ? Math.round(parseNumber(row[impressionsColIdx])) : 0;
     const conversions = conversionsColIdx !== -1 ? parseNumber(row[conversionsColIdx]) : 0;
+
+    // Сохраняем поисковый запрос, если есть колонка запросов
+    if (queryColIdx !== -1 && row[queryColIdx]) {
+      const qText = String(row[queryColIdx]).trim();
+      if (qText && qText !== '-' && !qText.startsWith('---')) {
+        searchQueriesList.push({
+          query: qText,
+          clicks,
+          impressions,
+          spendRub: spend,
+          conversions,
+        });
+      }
+    }
 
     const rawPlacement = placementColIdx !== -1 ? String(row[placementColIdx] || '') : '';
     const rawDevice = deviceColIdx !== -1 ? String(row[deviceColIdx] || '') : '';
@@ -405,8 +435,10 @@ export function parseDirectExcel(arrayBuffer: ArrayBuffer | Uint8Array): AuditIn
 
   return {
     campaigns,
+    searchQueries: searchQueriesList.length > 0 ? searchQueriesList : undefined,
     totalSpendRub: Math.round(grandTotalSpend * 100) / 100,
     totalConversions: Math.round(grandTotalConversions * 100) / 100,
     currency: 'RUB',
   };
+
 }

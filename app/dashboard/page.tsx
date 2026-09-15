@@ -18,6 +18,7 @@ import {
 import { AuditReportData } from '@/lib/audit/types';
 import { AuditResults } from '@/components/AuditResults';
 import { useUser } from '@/lib/auth/user-context';
+import { Crown } from 'lucide-react';
 
 interface AuditHistoryItem {
   id: string;
@@ -31,8 +32,9 @@ interface AuditHistoryItem {
 }
 
 export default function DashboardPage() {
-  const { user, loginDemo, logout } = useUser();
+  const { user, loginTestAccount, setTier, logout } = useUser();
   const [history, setHistory] = useState<AuditHistoryItem[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
 
   // Для просмотра конкретного аудита из истории
@@ -42,29 +44,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadHistory() {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
       try {
-        const headers: Record<string, string> = {};
-        if (user) {
-          headers['x-user-id'] = user.id;
-        }
+        const headers: Record<string, string> = {
+          'x-user-id': user.id,
+          'x-user-email': user.email,
+        };
         const res = await fetch('/api/audit/history', { headers });
         const data = await res.json();
         if (data.reports && data.reports.length > 0) {
           setHistory(data.reports);
         } else {
-          // Эталонная история
-          setHistory([
-            {
-              id: 'demo-1',
-              fileName: 'mebliron_feb_jul_2026.xlsx',
-              createdAt: new Date().toISOString(),
-              status: 'COMPLETED',
-              tier: 'EXPRESS',
-              totalSpendRub: 15050,
-              totalLossRub: 14880,
-              overallScore: 55,
-            },
-          ]);
+          setHistory([]);
         }
       } catch {
         setHistory([]);
@@ -117,11 +113,11 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             {user ? (
               <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700">
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700">
                   <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">
                     {user.name.charAt(0).toUpperCase()}
                   </div>
-                  <span className="font-medium max-w-[140px] truncate">{user.name}</span>
+                  <span className="font-medium max-w-[110px] sm:max-w-[160px] truncate">{user.name}</span>
                 </div>
                 <button
                   onClick={logout}
@@ -134,11 +130,12 @@ export default function DashboardPage() {
             ) : (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={loginDemo}
+                  onClick={() => loginTestAccount('MAX')}
                   className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors flex items-center gap-1.5"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span className="hidden sm:inline">Демо-профиль</span>
+                  <span className="hidden sm:inline">Тестовый профиль</span>
+                  <span className="sm:hidden">Тест</span>
                 </button>
                 <Link
                   href="/sign-in"
@@ -163,10 +160,10 @@ export default function DashboardPage() {
       </header>
 
       {/* Основной контент */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
         {selectedReport ? (
           <div>
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <button
                 onClick={() => setSelectedReport(null)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors"
@@ -174,8 +171,8 @@ export default function DashboardPage() {
                 <ArrowLeft className="w-4 h-4" />
                 <span>Вернуться к списку проверок</span>
               </button>
-              <span className="text-xs text-slate-500">
-                Просмотр сохраненного отчета: <span className="font-semibold text-slate-800">{selectedFileName}</span>
+              <span className="text-xs text-slate-500 truncate max-w-[200px] sm:max-w-none">
+                Отчет: <span className="font-semibold text-slate-800">{selectedFileName}</span>
               </span>
             </div>
 
@@ -187,28 +184,59 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-1">Реестр проверок Яндекс.Директ</h1>
-              <p className="text-sm text-slate-500">
-                Сохраненные отчеты, динамика индекса здоровья кабинетов и зафиксированные сливы
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Реестр проверок Яндекс.Директ</h1>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                  Сохраненные отчеты, динамика индекса здоровья и зафиксированные сливы
+                </p>
+              </div>
+
+              {/* Переключатель тарифа для тестирования */}
+              {user && (
+                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 self-start sm:self-auto">
+                  <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1 pl-1">
+                    <Crown className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Тариф:</span>
+                  </span>
+                  <div className="grid grid-cols-3 gap-1">
+                    {(['EXPRESS', 'PRO', 'MAX'] as const).map((t) => {
+                      const isActive = user.tier === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTier(t)}
+                          className={`px-2 py-0.5 text-[11px] font-bold rounded-md transition-all ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                          }`}
+                        >
+                          {t === 'EXPRESS' ? 'Экспресс' : t === 'PRO' ? 'Pro' : 'MAX'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Сводные карточки */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Всего проверок
                 </span>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold font-mono text-slate-900">
+                  <span className="text-2xl sm:text-3xl font-extrabold font-mono text-slate-900">
                     {history.length}
                   </span>
-                  <span className="text-xs text-slate-500">файлов</span>
+                  <span className="text-xs text-slate-500">выгрузок</span>
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
                     Обнаружено сливов
@@ -216,13 +244,13 @@ export default function DashboardPage() {
                   <Flame className="w-4 h-4 text-red-500" />
                 </div>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold font-mono text-red-600">
+                  <span className="text-2xl sm:text-3xl font-extrabold font-mono text-red-600">
                     {totalLossPrevented.toLocaleString('ru-RU')} ₽
                   </span>
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
                     Хранилище аудитов
@@ -230,13 +258,14 @@ export default function DashboardPage() {
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 </div>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-base font-bold text-slate-900">Neon PostgreSQL</span>
+                  <span className="text-sm sm:text-base font-bold text-slate-900">Защищенное облако</span>
                   <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                    Защищено
+                    Изолировано
                   </span>
                 </div>
               </div>
             </div>
+
 
             {/* Список аудитов */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">

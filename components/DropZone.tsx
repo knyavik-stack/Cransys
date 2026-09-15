@@ -84,7 +84,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.report) {
-          onAuditComplete(data.report, 'mebliron_feb_jul_2026.xlsx (Эталонный кейс Меблирон)');
+          onAuditComplete(data.report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
           return;
         }
       }
@@ -92,12 +92,13 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       // Fallback
       const report = await defaultAuditEngine.runAudit(mockMeblironData);
       report.campaigns = mockMeblironData.campaigns;
-      onAuditComplete(report, 'mebliron_feb_jul_2026.xlsx (Эталонный кейс Меблирон)');
+      onAuditComplete(report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
     } catch {
       const report = await defaultAuditEngine.runAudit(mockMeblironData);
       report.campaigns = mockMeblironData.campaigns;
-      onAuditComplete(report, 'mebliron_feb_jul_2026.xlsx (Эталонный кейс Меблирон)');
+      onAuditComplete(report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
     } finally {
+
       setIsLoading(false);
       setStatusText('');
     }
@@ -138,7 +139,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-8 sm:p-12 text-center transition-all duration-200 bg-white shadow-sm ${
+        className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-6 sm:p-10 text-center transition-all duration-200 bg-white shadow-xs ${
           isDragging
             ? 'border-blue-500 bg-blue-50/50 scale-[1.01]'
             : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50/70'
@@ -153,36 +154,36 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
         />
 
         <div className="flex flex-col items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-4">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-3 sm:mb-4">
             {isLoading ? (
-              <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <div className="w-7 h-7 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
             ) : (
-              <UploadCloud className="w-8 h-8" />
+              <UploadCloud className="w-7 h-7 sm:w-8 sm:h-8" />
             )}
           </div>
 
-          <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
+          <h3 className="text-base sm:text-xl font-bold text-slate-900 mb-2">
             {isLoading ? statusText || 'Анализируем выгрузку Директа...' : 'Перетащите сюда отчет из Яндекс.Директа'}
           </h3>
 
-          <p className="text-sm text-slate-500 max-w-md mb-6 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-500 max-w-md mb-5 leading-relaxed">
             Поддерживаются любые форматы: <span className="font-semibold text-slate-700">.xlsx</span>,{' '}
-            <span className="font-semibold text-slate-700">.csv</span> (с разделителями ; и запятыми) и{' '}
+            <span className="font-semibold text-slate-700">.csv</span> и{' '}
             <span className="font-semibold text-slate-700">.xls</span>
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3 w-full sm:w-auto">
             <button
               type="button"
               id="choose-file-btn"
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition-colors shadow-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium text-xs sm:text-sm hover:bg-blue-700 transition-colors shadow-xs"
               onClick={(e) => {
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
             >
-              <FileSpreadsheet className="w-4 h-4" />
+              <FileSpreadsheet className="w-4 h-4 shrink-0" />
               <span>Выбрать файл на устройстве</span>
             </button>
 
@@ -190,18 +191,19 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
               type="button"
               id="demo-load-btn"
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-sm transition-colors border border-slate-200"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-xs sm:text-sm transition-colors border border-slate-200"
               onClick={(e) => {
                 e.stopPropagation();
                 handleLoadDemo();
               }}
             >
-              <Sparkles className="w-4 h-4 text-amber-600" />
-              <span>Загрузить кейс «Меблирон» (15 тыс. ₽)</span>
+              <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Загрузить пример выгрузки (15 тыс. ₽)</span>
             </button>
           </div>
         </div>
       </div>
+
 
       {error && (
         <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3">

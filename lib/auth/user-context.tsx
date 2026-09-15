@@ -7,6 +7,7 @@ export interface UserProfile {
   email: string;
   name: string;
   role?: string;
+  tier: 'EXPRESS' | 'PRO' | 'MAX';
   createdAt?: string;
 }
 
@@ -14,7 +15,8 @@ interface UserContextType {
   user: UserProfile | null;
   isLoading: boolean;
   login: (email: string, name?: string) => void;
-  loginDemo: () => void;
+  loginTestAccount: (tier?: 'EXPRESS' | 'PRO' | 'MAX') => void;
+  setTier: (tier: 'EXPRESS' | 'PRO' | 'MAX') => void;
   logout: () => void;
 }
 
@@ -22,11 +24,12 @@ const UserContext = createContext<UserContextType>({
   user: null,
   isLoading: true,
   login: () => {},
-  loginDemo: () => {},
+  loginTestAccount: () => {},
+  setTier: () => {},
   logout: () => {},
 });
 
-const STORAGE_KEY = 'cransys_current_user_v2';
+const STORAGE_KEY = 'cransys_current_user_v3';
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -45,6 +48,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       email,
       name: name || email.split('@')[0] || 'Пользователь',
+      tier: 'PRO', // По умолчанию для авторизованных
       createdAt: new Date().toISOString(),
     };
     setUser(newUser);
@@ -53,17 +57,42 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   };
 
-  const loginDemo = () => {
-    const demoUser: UserProfile = {
-      id: 'demo_user_mebliron',
-      email: 'owner@mebliron-direct.ru',
-      name: 'Собственник Меблирон',
-      role: 'PRO_USER',
+  const loginTestAccount = (tier: 'EXPRESS' | 'PRO' | 'MAX' = 'MAX') => {
+    const testUser: UserProfile = {
+      id: 'test_owner_account',
+      email: 'test-owner@cransys-audit.ru',
+      name: 'Тестовый аккаунт (Собственник)',
+      role: 'TESTER_ADMIN',
+      tier: tier,
       createdAt: new Date().toISOString(),
     };
-    setUser(demoUser);
+    setUser(testUser);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(demoUser));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(testUser));
+    } catch {}
+  };
+
+  const setTier = (tier: 'EXPRESS' | 'PRO' | 'MAX') => {
+    if (!user) {
+      // Если гость хочет переключить тариф для тестирования
+      const guestUser: UserProfile = {
+        id: 'guest_test_account',
+        email: 'guest@cransys-test.ru',
+        name: 'Тестовый гость',
+        tier: tier,
+        createdAt: new Date().toISOString(),
+      };
+      setUser(guestUser);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(guestUser));
+      } catch {}
+      return;
+    }
+
+    const updated = { ...user, tier };
+    setUser(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     } catch {}
   };
 
@@ -75,7 +104,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, isLoading, login, loginDemo, logout }}>
+    <UserContext.Provider value={{ user, isLoading, login, loginTestAccount, setTier, logout }}>
       {children}
     </UserContext.Provider>
   );
@@ -84,3 +113,4 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 export function useUser() {
   return useContext(UserContext);
 }
+
