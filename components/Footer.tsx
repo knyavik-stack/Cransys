@@ -18,9 +18,9 @@ export function Footer() {
                 Direct Engine 2026
               </span>
             </div>
-            <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
+         {/*    <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
               Независимый автоматизированный аудит рекламы в Яндекс.Директ. Поиск скрытых сливов бюджета в сетях РСЯ, нецелевого поискового трафика и слепых автостратегий.
-            </p>
+            </p> */}
             <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 pt-1">
               <span className="inline-flex items-center gap-1">
                 <Shield className="w-3.5 h-3.5 text-blue-400" />
@@ -65,7 +65,7 @@ export function Footer() {
           </div>
 
           {/* Тарифная линейка */}
-          <div>
+      {/*     <div>
             <h4 className="font-bold text-white mb-3 text-xs tracking-wider uppercase">Тарифные планы</h4>
             <ul className="space-y-1.5 text-xs text-slate-400">
               <li className="flex items-center justify-between">
@@ -90,7 +90,7 @@ export function Footer() {
               </li>
             </ul>
           </div>
-
+*/}
           {/* Безопасность и регламент */}
           <div>
             <h4 className="font-bold text-white mb-3 text-xs tracking-wider uppercase">Конфиденциальность</h4>
