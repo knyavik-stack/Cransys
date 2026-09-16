@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findUserByEmail, updateUser, generateVerificationCode } from '@/lib/db/users-store';
+import { sendVerificationEmail } from '@/lib/email/mailer';
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,9 +30,16 @@ export async function POST(req: NextRequest) {
       verificationExpires: expires,
     });
 
+    // Отправка реального письма через Яндекс SMTP
+    await sendVerificationEmail({
+      to: email,
+      code: newCode,
+      name: user.name,
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Новый код подтверждения сгенерирован',
+      message: `Новый код подтверждения отправлен на почту ${email}`,
       verificationCode: newCode,
     });
   } catch (error) {

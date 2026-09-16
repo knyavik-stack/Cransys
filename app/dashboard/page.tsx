@@ -31,6 +31,7 @@ import { AuditResults } from '@/components/AuditResults';
 import { useUser } from '@/lib/auth/user-context';
 import { PricingModal } from '@/components/PricingModal';
 import { WhiteLabelSettingsModal } from '@/components/WhiteLabelSettingsModal';
+import { DirectConnectCard } from '@/components/DirectConnectCard';
 import { UserTier, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
 
 interface AuditHistoryItem {
@@ -313,61 +314,14 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Direct API Card: Баннер статуса и Upsell */}
-            <div
-              className={`p-5 rounded-2xl border transition-all ${
-                getTierConfig(user?.tier).hasDirectApi
-                  ? 'bg-gradient-to-r from-emerald-50/80 to-blue-50/80 border-emerald-200'
-                  : 'bg-gradient-to-r from-slate-50 to-blue-50/40 border-blue-200'
-              }`}
-            >
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      getTierConfig(user?.tier).hasDirectApi
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-slate-200 text-slate-500'
-                    }`}
-                  >
-                    <KeyRound className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900">
-                        Интеграция с API Яндекс.Директ (OAuth)
-                      </h3>
-                      {getTierConfig(user?.tier).hasDirectApi ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          Включено в ваш тариф ({user?.tier})
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                          <Lock className="w-3 h-3 text-slate-500" />
-                          Доступно от тарифа PRO
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-                      {getTierConfig(user?.tier).hasDirectApi
-                        ? 'Автоматическое бесшовное сканирование рекламных кампаний клиента в 1 клик через официальный Яндекс API без ручной выгрузки Excel/CSV.'
-                        : 'Прямое подключение к аккаунту Яндекс.Директа по OAuth доступно на тарифах PRO (10 отчетов/мес), MAX (30 отчетов) и Corporate. Избавьтесь от ручной рутины скачивания файлов.'}
-                    </p>
-                  </div>
-                </div>
-
-                {!getTierConfig(user?.tier).hasDirectApi && (
-                  <button
-                    type="button"
-                    onClick={() => setIsPricingModalOpen(true)}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all shrink-0 shadow-xs"
-                  >
-                    Подключить Direct API в PRO
-                  </button>
-                )}
-              </div>
-            </div>
+            {/* Интерактивная карточка подключения к Яндекс.Директ */}
+            <DirectConnectCard
+              onAuditComplete={(report, fileName) => {
+                setSelectedReport(report);
+                setSelectedFileName(fileName);
+              }}
+              onOpenPricing={() => setIsPricingModalOpen(true)}
+            />
 
             {/* Карточки метрик */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

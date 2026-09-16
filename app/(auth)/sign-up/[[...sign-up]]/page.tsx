@@ -72,12 +72,12 @@ export default function SignUpPage() {
       }
 
       // Если регистрация успешна и требуется подтверждение
-      if (data.debugCode) {
-        setReceivedDebugCode(data.debugCode);
-        setVerificationCode(data.debugCode); // Автоподстановка для максимального удобства
+      if (data.verificationCode || data.debugCode) {
+        const code = data.verificationCode || data.debugCode;
+        setReceivedDebugCode(code);
       }
 
-      setSuccessMsg('Аккаунт зарегистрирован! Введите код подтверждения, отправленный на ваш email.');
+      setSuccessMsg(data.message || 'Аккаунт зарегистрирован! Введите код подтверждения, отправленный на ваш email.');
       setStep('VERIFY_EMAIL');
       setResendCooldown(60);
     } catch (err) {
@@ -143,11 +143,11 @@ export default function SignUpPage() {
 
       const data = await res.json();
       if (data.success) {
-        if (data.debugCode) {
-          setReceivedDebugCode(data.debugCode);
-          setVerificationCode(data.debugCode);
+        if (data.verificationCode || data.debugCode) {
+          const code = data.verificationCode || data.debugCode;
+          setReceivedDebugCode(code);
         }
-        setSuccessMsg('Новый код отправлен на вашу почту');
+        setSuccessMsg(data.message || 'Новый код отправлен на вашу почту');
         setResendCooldown(60);
       } else {
         setErrorMsg(data.error || 'Не удалось отправить код повторно');

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findUserByEmail, updateUser } from '@/lib/db/users-store';
 import { checkPasswordSecurity } from '@/lib/auth/password-validator';
+import { sendPasswordChangedEmail } from '@/lib/email/mailer';
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +43,12 @@ export async function POST(req: NextRequest) {
     }
 
     await updateUser(user.id, { passwordHash: newPassword });
+
+    // Отправка уведомления на email о смене пароля
+    await sendPasswordChangedEmail({
+      to: email,
+      name: user.name,
+    });
 
     return NextResponse.json({
       success: true,

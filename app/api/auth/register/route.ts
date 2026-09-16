@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { findUserByEmail, createUser, generateVerificationCode } from '@/lib/db/users-store';
 import { checkPasswordSecurity } from '@/lib/auth/password-validator';
 import { UserTier } from '@/lib/billing/tiers';
+import { sendVerificationEmail } from '@/lib/email/mailer';
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,11 +56,17 @@ export async function POST(req: NextRequest) {
       verificationExpires,
     });
 
+    // Отправка реального письма через Яндекс SMTP
+    await sendVerificationEmail({
+      to: email,
+      code: verificationCode,
+      name: newUser.name,
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Регистрация прошла успешно! Введите код подтверждения email.',
+      message: `Код подтверждения отправлен на почту ${email}. Пожалуйста, проверьте входящие (или папку «Спам»).`,
       requiresVerification: true,
-      // Возвращаем код для удобства проверки в интерфейсе
       verificationCode,
       user: {
         id: newUser.id,
