@@ -5,7 +5,7 @@ import { mockMeblironData } from '@/tests/fixtures/mebliron';
 import { parseDirectExcel } from '@/lib/parser/excel-parser';
 import { generateAiDirectAudit } from '@/lib/ai/direct-analyst';
 import { analyzeSearchQueriesAi } from '@/lib/ai/search-query-analyst';
-import { getDb } from '@/db';
+import { saveAuditRecord } from '@/lib/db/audit-store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,48 +73,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Сохранение в базу данных Neon (если подключена)
+    // 4. Сохранение в базу данных Neon и локальное хранилище
     let savedJobId: string | null = null;
-    const sql = getDb();
-    if (sql) {
-      try {
-        const userIdHeader = req.headers.get('x-user-id');
-        const userEmailHeader = req.headers.get('x-user-email');
+    try {
+      const userIdHeader = req.headers.get('x-user-id');
+      const userEmailHeader = req.headers.get('x-user-email');
 
-        let validUserId: string | null = null;
-        if (userIdHeader && userEmailHeader) {
-          try {
-            await sql`
-              INSERT INTO public.profiles (id, email, first_name)
-              VALUES (${userIdHeader}, ${userEmailHeader}, 'Пользователь')
-              ON CONFLICT (id) DO NOTHING;
-            `;
-            validUserId = userIdHeader;
-          } catch {
-            // Игнорируем ошибку профиля, если таблица еще не обновлена
-          }
-        }
-
-        const insertRes = await sql`
-          INSERT INTO public.audit_jobs (user_id, file_name, source_type, status)
-          VALUES (${validUserId}, ${fileName}, 'YANDEX_DIRECT_XLSX', 'COMPLETED')
-          RETURNING id;
-        `;
-        if (insertRes && insertRes[0]) {
-          savedJobId = insertRes[0].id;
-          await sql`
-            INSERT INTO public.audit_reports (
-              audit_job_id, tier, total_spend_rub, total_loss_rub, overall_score, rules_summary
-            )
-            VALUES (
-              ${savedJobId}, 'EXPRESS', ${report.totalSpendRub}, ${report.totalLossRub},
-              ${report.overallScore}, ${JSON.stringify(report)}
-            );
-          `;
-        }
-      } catch (dbErr) {
-        console.warn('DB record skipped (graceful fallback):', dbErr);
-      }
+      savedJobId = await saveAuditRecord({
+        userId: userIdHeader || null,
+        userEmail: userEmailHeader || null,
+        fileName,
+        report,
+        tier: 'EXPRESS_SINGLE',
+      });
+    } catch (dbErr) {
+      console.warn('Audit record save skipped:', dbErr);
     }
 
     return NextResponse.json({

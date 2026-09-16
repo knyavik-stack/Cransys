@@ -77,9 +77,15 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
     setStatusText('Загружаем эталонный кейс «Меблирон»...');
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (user) {
+        headers['x-user-id'] = user.id;
+        headers['x-user-email'] = user.email;
+      }
+
       const response = await fetch('/api/audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(mockMeblironData),
       });
 

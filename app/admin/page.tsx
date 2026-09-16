@@ -73,6 +73,7 @@ export interface AdminUserRecord {
   agencyContact?: string;
   agencyWebsite?: string;
   customNotes?: string;
+  emailVerified?: boolean;
 }
 
 const GUEST_ANALYTICS_DATA = [
@@ -855,7 +856,18 @@ export default function AdminPage() {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-slate-400 text-[11px] font-mono">{u.email}</div>
+                                  <div className="text-slate-400 text-[11px] font-mono flex items-center gap-1.5">
+                                    <span>{u.email}</span>
+                                    {u.emailVerified ? (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-sans font-medium" title="Email верифицирован">
+                                        ✓ Email подтвержден
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-sans font-medium" title="Ожидает подтверждения">
+                                        Ожидает кода
+                                      </span>
+                                    )}
+                                  </div>
                                   {u.agencyName && (
                                     <div className="text-[10px] text-purple-300">🏢 {u.agencyName}</div>
                                   )}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  getAllUsers,
+  getAllUsersAsync,
   createUser,
   updateUser,
   deleteUser,
@@ -8,10 +8,11 @@ import {
   findUserByEmail,
 } from '@/lib/db/users-store';
 import { UserTier, getTierConfig } from '@/lib/billing/tiers';
+import { checkPasswordSecurity } from '@/lib/auth/password-validator';
 
 export async function GET(req: NextRequest) {
   try {
-    const users = getAllUsers();
+    const users = await getAllUsersAsync();
     // Возвращаем список пользователей без паролей для безопасности
     const sanitized = users.map((u) => ({
       id: u.id,
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
       revenue: u.revenue,
       createdAt: u.createdAt,
       lastActive: u.lastActive,
+      emailVerified: u.emailVerified,
       agencyName: u.agencyName,
       agencyContact: u.agencyContact,
       agencyWebsite: u.agencyWebsite,
@@ -54,7 +56,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = findUserByEmail(email);
+    const passwordCheck = checkPasswordSecurity(password);
+    if (!passwordCheck.valid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: passwordCheck.errors.join('. '),
+          rules: passwordCheck.rules,
+        },
+        { status: 400 }
+      );
+    }
+
+    const existing = await findUserByEmail(email);
     if (existing) {
       return NextResponse.json(
         { success: false, error: 'Пользователь с таким email уже существует' },
@@ -62,13 +76,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newUser = createUser({
+    const newUser = await createUser({
       email,
       password,
       name: name || email.split('@')[0],
       tier: tier || 'EXPRESS_SINGLE',
       role: role || 'USER',
       hasPaid: hasPaid ?? true,
+      emailVerified: true, // Администратор создает уже верифицированного пользователя
     });
 
     return NextResponse.json({ success: true, user: newUser });
@@ -84,7 +99,22 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, email, password, name, tier, reportsUsed, reportsLimit, isBlocked, revenue, agencyName } = body;
+    const {
+      id,
+      email,
+      password,
+      name,
+      tier,
+      reportsUsed,
+      reportsLimit,
+      isBlocked,
+      revenue,
+      emailVerified,
+      agencyName,
+      agencyContact,
+      agencyWebsite,
+      customNotes,
+    } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -95,7 +125,16 @@ export async function PUT(req: NextRequest) {
 
     const patch: any = {};
     if (email !== undefined) patch.email = email.trim().toLowerCase();
-    if (password !== undefined && password.length >= 3) patch.passwordHash = password;
+    if (password !== undefined && password.length >= 8) {
+      const passwordCheck = checkPasswordSecurity(password);
+      if (!passwordCheck.valid) {
+        return NextResponse.json(
+          { success: false, error: passwordCheck.errors.join('. ') },
+          { status: 400 }
+        );
+      }
+      patch.passwordHash = password;
+    }
     if (name !== undefined) patch.name = name;
     if (tier !== undefined) {
       patch.tier = tier as UserTier;
@@ -108,9 +147,13 @@ export async function PUT(req: NextRequest) {
     if (reportsLimit !== undefined) patch.reportsLimit = Math.max(1, Number(reportsLimit));
     if (isBlocked !== undefined) patch.isBlocked = Boolean(isBlocked);
     if (revenue !== undefined) patch.revenue = Math.max(0, Number(revenue));
+    if (emailVerified !== undefined) patch.emailVerified = Boolean(emailVerified);
     if (agencyName !== undefined) patch.agencyName = agencyName;
+    if (agencyContact !== undefined) patch.agencyContact = agencyContact;
+    if (agencyWebsite !== undefined) patch.agencyWebsite = agencyWebsite;
+    if (customNotes !== undefined) patch.customNotes = customNotes;
 
-    const updated = updateUser(id, patch);
+    const updated = await updateUser(id, patch);
     if (!updated) {
       return NextResponse.json(
         { success: false, error: 'Пользователь не найден' },
@@ -133,7 +176,11 @@ export async function PUT(req: NextRequest) {
         revenue: updated.revenue,
         createdAt: updated.createdAt,
         lastActive: updated.lastActive,
+        emailVerified: updated.emailVerified,
         agencyName: updated.agencyName,
+        agencyContact: updated.agencyContact,
+        agencyWebsite: updated.agencyWebsite,
+        customNotes: updated.customNotes,
       },
     });
   } catch (error) {
@@ -157,7 +204,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const target = findUserById(id);
+    const target = await findUserById(id);
     if (target?.role === 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Нельзя удалить главного администратора платформы' },
@@ -165,7 +212,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const success = deleteUser(id);
+    const success = await deleteUser(id);
     if (!success) {
       return NextResponse.json(
         { success: false, error: 'Пользователь не найден' },

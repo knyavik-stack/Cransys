@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findUserByEmail, updateUser } from '@/lib/db/users-store';
+import { checkPasswordSecurity } from '@/lib/auth/password-validator';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = findUserByEmail(email);
+    const user = await findUserByEmail(email);
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Пользователь с таким email не найден в системе' },
@@ -28,14 +29,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!newPassword || newPassword.length < 5) {
+    const passwordValidation = checkPasswordSecurity(newPassword);
+    if (!passwordValidation.valid) {
       return NextResponse.json(
-        { success: false, error: 'Новый пароль должен содержать минимум 5 символов' },
+        {
+          success: false,
+          error: passwordValidation.errors.join('. '),
+          rules: passwordValidation.rules,
+        },
         { status: 400 }
       );
     }
 
-    updateUser(user.id, { passwordHash: newPassword });
+    await updateUser(user.id, { passwordHash: newPassword });
 
     return NextResponse.json({
       success: true,

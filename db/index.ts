@@ -22,8 +22,10 @@ export function getDb() {
   return sqlClient;
 }
 
+let isSchemaReady = false;
+
 /**
- * Автоматическая накатка схемы БД (profiles, audit_jobs, audit_reports, payments)
+ * Автоматическая накатка схемы БД (app_users, profiles, audit_jobs, audit_reports, payments)
  */
 export async function initializeDatabaseSchema(): Promise<{ success: boolean; message: string }> {
   const sql = getDb();
@@ -35,12 +37,17 @@ export async function initializeDatabaseSchema(): Promise<{ success: boolean; me
   }
 
   try {
-    // Выполняем создание таблиц
-    const template = [SQL_INIT_SCHEMA] as unknown as TemplateStringsArray;
-    await sql(template);
+    const statements = SQL_INIT_SCHEMA.split(';')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    for (const statement of statements) {
+      await (sql as any).query(statement);
+    }
+    isSchemaReady = true;
     return {
       success: true,
-      message: 'Таблицы Cransys (profiles, audit_jobs, audit_reports, payments) успешно инициализированы в Neon.',
+      message: 'Таблицы Cransys (app_users, profiles, audit_jobs, audit_reports, payments) успешно инициализированы в Neon.',
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Неизвестная ошибка инициализации БД';
@@ -49,4 +56,10 @@ export async function initializeDatabaseSchema(): Promise<{ success: boolean; me
       message: `Ошибка при создании таблиц: ${msg}`,
     };
   }
+}
+
+export async function ensureDatabaseReady(): Promise<boolean> {
+  if (isSchemaReady) return true;
+  const res = await initializeDatabaseSchema();
+  return res.success;
 }

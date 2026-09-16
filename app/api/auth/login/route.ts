@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const trimmedEmail = email.trim().toLowerCase();
-    const user = findUserByEmail(trimmedEmail);
+    const user = await findUserByEmail(trimmedEmail);
 
     if (!user) {
       return NextResponse.json(
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Обновляем активность
-    updateUser(user.id, { lastActive: new Date().toISOString().split('T')[0] });
+    await updateUser(user.id, { lastActive: new Date().toISOString().split('T')[0] });
 
     return NextResponse.json({
       success: true,
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
         reportsUsed: user.reportsUsed,
         reportsLimit: user.reportsLimit,
         createdAt: user.createdAt,
+        emailVerified: user.emailVerified,
         agencyName: user.agencyName,
         agencyContact: user.agencyContact,
         agencyWebsite: user.agencyWebsite,

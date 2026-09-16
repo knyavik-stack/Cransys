@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
 
     // Обновляем статус пользователя в хранилище при оплате
     if (userId || userEmail) {
-      const targetUser = userId ? findUserById(userId) : (userEmail ? findUserByEmail(userEmail) : null);
+      const targetUser = userId ? await findUserById(userId) : (userEmail ? await findUserByEmail(userEmail) : null);
       if (targetUser) {
-        updateUser(targetUser.id, {
+        await updateUser(targetUser.id, {
           tier: normalizedTier,
           hasPaid: true,
           reportsLimit: tierConfig.reportsLimit,

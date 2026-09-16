@@ -31,7 +31,7 @@ import { defaultAuditEngine } from '@/lib/audit/engine';
 import { useUser } from '@/lib/auth/user-context';
 
 export default function HomePage() {
-  const { incrementReportsUsed } = useUser();
+  const { user, incrementReportsUsed } = useUser();
   const [activeReport, setActiveReport] = useState<AuditReportData | null>(null);
   const [sourceName, setSourceName] = useState<string>('');
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
@@ -56,9 +56,15 @@ export default function HomePage() {
   const handleRunDemoAudit = async () => {
     setIsDemoLoading(true);
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (user) {
+        headers['x-user-id'] = user.id;
+        headers['x-user-email'] = user.email;
+      }
+
       const response = await fetch('/api/audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(mockMeblironData),
       });
 
@@ -194,16 +200,16 @@ export default function HomePage() {
                 </div>
 
                 {/* Интерактивный блок призыва (CTA): Демо без регистрации -> Выбор платного тарифа */}
-                <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white shadow-sm border border-slate-700/60 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/50 text-slate-900 shadow-xs border border-blue-200/80 flex flex-col md:flex-row items-center justify-between gap-6">
                   <div className="space-y-2 text-center md:text-left">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[11px] font-medium">
-                      <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100/70 text-blue-800 border border-blue-200 text-[11px] font-semibold">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                       <span>Мгновенный тест возможностей</span>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+                    <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
                       Оцените глубину аудита на эталонном отчете
                     </h3>
-                    <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-600 max-w-xl leading-relaxed">
                       Попробуйте аудит прямо сейчас без регистрации и ввода карт. После ознакомления с демо вы сможете зарегистрироваться и подключить свой рекламный кабинет.
                     </p>
                   </div>
@@ -213,7 +219,7 @@ export default function HomePage() {
                       type="button"
                       onClick={handleRunDemoAudit}
                       disabled={isDemoLoading}
-                      className="w-full sm:w-auto px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all shadow-md flex items-center justify-center gap-2"
+                      className="w-full sm:w-auto px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-2"
                     >
                       <Eye className="w-4 h-4" />
                       <span>{isDemoLoading ? 'Запуск анализа...' : 'Посмотреть ДЕМО-отчет (без регистрации)'}</span>
@@ -222,10 +228,10 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() => handleOpenPricingForTier('PRO')}
-                      className="w-full sm:w-auto px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/20 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full sm:w-auto px-4 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs"
                     >
                       <span>Выбрать тариф и подключить</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
                     </button>
                   </div>
                 </div>

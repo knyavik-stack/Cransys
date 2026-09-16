@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserByEmail, createUser } from '@/lib/db/users-store';
-import { getTierConfig, UserTier } from '@/lib/billing/tiers';
+import { findUserByEmail, createUser, generateVerificationCode } from '@/lib/db/users-store';
+import { checkPasswordSecurity } from '@/lib/auth/password-validator';
+import { UserTier } from '@/lib/billing/tiers';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,14 +15,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!password || password.length < 5) {
+    // Проверка требований безопасности пароля
+    const passwordCheck = checkPasswordSecurity(password);
+    if (!passwordCheck.valid) {
       return NextResponse.json(
-        { success: false, error: 'Пароль должен содержать не менее 5 символов' },
+        {
+          success: false,
+          error: passwordCheck.errors.join('. '),
+          rules: passwordCheck.rules,
+        },
         { status: 400 }
       );
     }
 
-    const existing = findUserByEmail(email);
+    const existing = await findUserByEmail(email);
     if (existing) {
       return NextResponse.json(
         {
@@ -33,18 +40,27 @@ export async function POST(req: NextRequest) {
     }
 
     const defaultTier: UserTier = 'EXPRESS_SINGLE';
-    const newUser = createUser({
+    const verificationCode = generateVerificationCode();
+    const verificationExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    const newUser = await createUser({
       email,
       password,
       name: name || email.split('@')[0],
       tier: defaultTier,
       role: 'USER',
       hasPaid: false,
+      emailVerified: false,
+      verificationCode,
+      verificationExpires,
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Регистрация прошла успешно!',
+      message: 'Регистрация прошла успешно! Введите код подтверждения email.',
+      requiresVerification: true,
+      // Возвращаем код для удобства проверки в интерфейсе
+      verificationCode,
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -55,6 +71,7 @@ export async function POST(req: NextRequest) {
         reportsUsed: newUser.reportsUsed,
         reportsLimit: newUser.reportsLimit,
         createdAt: newUser.createdAt,
+        emailVerified: newUser.emailVerified,
       },
     });
   } catch (error) {
