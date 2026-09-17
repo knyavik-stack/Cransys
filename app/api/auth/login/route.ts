@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Обновляем активность
-    await updateUser(user.id, { lastActive: new Date().toISOString().split('T')[0] });
+    // Обновляем активность и дату последнего входа
+    await updateUser(user.id, { lastActive: new Date().toISOString() });
 
     return NextResponse.json({
       success: true,

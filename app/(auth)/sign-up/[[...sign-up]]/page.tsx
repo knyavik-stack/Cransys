@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
 import { checkPasswordSecurity } from '@/lib/auth/password-validator';
+import { Footer } from '@/components/Footer';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -57,13 +58,11 @@ export default function SignUpPage() {
     }
 
     setIsSubmitting(true);
-    const cleanEmail = email.trim().toLowerCase();
-
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password, name }),
+        body: JSON.stringify({ email, password, name }),
       });
 
       const data = await response.json();
@@ -100,13 +99,11 @@ export default function SignUpPage() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    const cleanEmail = email.trim().toLowerCase();
-
     try {
       const response = await fetch('/api/auth/verify-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, code: verificationCode.trim() }),
+        body: JSON.stringify({ email, code: verificationCode.trim() }),
       });
 
       const data = await response.json();
@@ -138,13 +135,11 @@ export default function SignUpPage() {
     setIsResending(true);
     setErrorMsg('');
 
-    const cleanEmail = email.trim().toLowerCase();
-
     try {
       const res = await fetch('/api/auth/resend-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await res.json();
@@ -166,9 +161,10 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
-        <div className="text-center mb-6">
+    <div className="min-h-screen flex flex-col justify-between bg-slate-50">
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
+          <div className="text-center mb-6">
           <div className="w-12 h-12 rounded-xl bg-blue-600 text-white font-bold text-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
             C
           </div>
@@ -335,6 +331,22 @@ export default function SignUpPage() {
             >
               {isSubmitting ? 'Проверка безопасности и создание...' : 'Продолжить регистрацию'}
             </button>
+
+            <p className="text-[11px] text-slate-500 text-center leading-normal pt-1">
+              Нажимая кнопку, вы соглашаетесь с{' '}
+              <Link href="/legal/terms" className="text-blue-600 hover:underline">
+                Пользовательским соглашением
+              </Link>
+              ,{' '}
+              <Link href="/legal/privacy" className="text-blue-600 hover:underline">
+                Политикой конфиденциальности
+              </Link>{' '}
+              и даете{' '}
+              <Link href="/legal/consent" className="text-blue-600 hover:underline">
+                согласие на обработку персональных данных (152-ФЗ)
+              </Link>
+              .
+            </p>
           </form>
         ) : (
           /* Шаг 2: Подтверждение Email */
@@ -409,24 +421,26 @@ export default function SignUpPage() {
           </span>
         </div>
 
-        <div className="text-center space-y-2">
-          <p className="text-xs text-slate-500">
-            Уже есть аккаунт?{' '}
-            <Link href="/sign-in" className="text-blue-600 font-semibold hover:underline">
-              Войти
-            </Link>
-          </p>
-          <div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Вернуться на главную</span>
-            </Link>
+          <div className="text-center space-y-2">
+            <p className="text-xs text-slate-500">
+              Уже есть аккаунт?{' '}
+              <Link href="/sign-in" className="text-blue-600 font-semibold hover:underline">
+                Войти
+              </Link>
+            </p>
+            <div>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Вернуться на главную</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

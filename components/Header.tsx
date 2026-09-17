@@ -40,10 +40,12 @@ export function Header() {
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
+                id="header-pricing-button"
                 onClick={() => setIsPricingOpen(true)}
-                className="hidden md:inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-blue-600 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-blue-600 px-2 sm:px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                title="Официальная тарифная сетка Cransys"
               >
-                <CreditCard className="w-3.5 h-3.5 text-slate-500" />
+                <CreditCard className="w-3.5 h-3.5 text-blue-600" />
                 <span>Тарифы</span>
               </button>
 

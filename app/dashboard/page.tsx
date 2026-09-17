@@ -31,6 +31,7 @@ import { AuditResults } from '@/components/AuditResults';
 import { useUser } from '@/lib/auth/user-context';
 import { PricingModal } from '@/components/PricingModal';
 import { WhiteLabelSettingsModal } from '@/components/WhiteLabelSettingsModal';
+import { Footer } from '@/components/Footer';
 import { DirectConnectCard } from '@/components/DirectConnectCard';
 import { UserTier, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
 
@@ -476,6 +477,8 @@ export default function DashboardPage() {
         isOpen={isWhiteLabelModalOpen}
         onClose={() => setIsWhiteLabelModalOpen(false)}
       />
+
+      <Footer />
     </div>
   );
 }

@@ -560,6 +560,7 @@ export async function verifyUserEmailCode(
     emailVerified: true,
     verificationCode: undefined,
     verificationExpires: undefined,
+    lastActive: new Date().toISOString(),
   });
 
   return { success: true, user: updated || user };

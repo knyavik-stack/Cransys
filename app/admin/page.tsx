@@ -102,6 +102,23 @@ const TIER_COLORS: Record<UserTier, string> = {
   CORP: '#4F46E5',
 };
 
+function formatDateTime(dateStr?: string | null): string {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 const emptySubscribe = () => () => {};
 
 export default function AdminPage() {
@@ -806,16 +823,17 @@ export default function AdminPage() {
                       <th className="py-3 px-4">Пользователь</th>
                       <th className="py-3 px-3">Тариф</th>
                       <th className="py-3 px-3">Статус</th>
-                      <th className="py-3 px-3">Отчетов израсходовано</th>
+                      <th className="py-3 px-3">Отчетов</th>
                       <th className="py-3 px-3">Выручка</th>
                       <th className="py-3 px-3">Регистрация</th>
+                      <th className="py-3 px-3">Последний вход</th>
                       <th className="py-3 px-4 text-right">Действия</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-8 text-slate-500">
+                        <td colSpan={8} className="text-center py-8 text-slate-500">
                           Пользователи не найдены
                         </td>
                       </tr>
@@ -915,8 +933,12 @@ export default function AdminPage() {
                               {(u.revenue || 0).toLocaleString('ru-RU')} ₽
                             </td>
 
-                            <td className="py-3 px-3 text-slate-400 text-[11px]">
-                              {u.createdAt}
+                            <td className="py-3 px-3 text-slate-300 text-[11px] font-mono whitespace-nowrap">
+                              {formatDateTime(u.createdAt)}
+                            </td>
+
+                            <td className="py-3 px-3 text-slate-400 text-[11px] font-mono whitespace-nowrap">
+                              {u.lastActive ? formatDateTime(u.lastActive) : '—'}
                             </td>
 
                             <td className="py-3 px-4 text-right">
@@ -1134,6 +1156,17 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleSaveUserChanges} className="space-y-3.5">
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] grid grid-cols-2 gap-2 text-slate-400">
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Регистрация:</span>
+                  <span className="font-mono text-slate-200 font-semibold">{formatDateTime(editingUser.createdAt)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Последний вход:</span>
+                  <span className="font-mono text-slate-200 font-semibold">{editingUser.lastActive ? formatDateTime(editingUser.lastActive) : 'Еще не входил'}</span>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Email (Логин)

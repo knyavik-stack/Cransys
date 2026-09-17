@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, KeyRound, Mail, Lock, CheckCircle2, AlertCircle, Shield } from 'lucide-react';
+import { Footer } from '@/components/Footer';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -55,9 +56,10 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-        <div className="text-center mb-6">
+    <div className="min-h-screen flex flex-col justify-between bg-slate-50">
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
+          <div className="text-center mb-6">
           <div className="w-12 h-12 rounded-xl bg-blue-600/10 text-blue-600 border border-blue-200 flex items-center justify-center mx-auto mb-3">
             <KeyRound className="w-6 h-6" />
           </div>
@@ -149,24 +151,26 @@ export default function ForgotPasswordPage() {
           </span>
         </div>
 
-        <div className="text-center space-y-2">
-          <p className="text-xs text-slate-500">
-            Вспомнили пароль?{' '}
-            <Link href="/sign-in" className="text-blue-600 font-semibold hover:underline">
-              Войти
-            </Link>
-          </p>
-          <div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Вернуться на главную</span>
-            </Link>
+          <div className="text-center space-y-2">
+            <p className="text-xs text-slate-500">
+              Вспомнили пароль?{' '}
+              <Link href="/sign-in" className="text-blue-600 font-semibold hover:underline">
+                Войти
+              </Link>
+            </p>
+            <div>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Вернуться на главную</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
