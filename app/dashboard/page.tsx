@@ -162,7 +162,16 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setIsPricingModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 text-slate-700 hover:text-blue-700 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Zap className="w-3.5 h-3.5 text-blue-600" />
+              <span>Тарифы</span>
+            </button>
+
             {user ? (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700">

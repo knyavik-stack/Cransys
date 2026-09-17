@@ -259,9 +259,9 @@ export default function HomePage() {
             </section>
 
             {/* Секция тарифов на главной */}
-            <section id="pricing-section" className="py-14 bg-slate-50 border-t border-slate-200/80 px-4 sm:px-6 lg:px-8">
+            <section id="pricing-section" className="pt-10 pb-8 bg-slate-50 border-t border-slate-200/80 px-4 sm:px-6 lg:px-8">
               <div className="max-w-6xl mx-auto">
-                <div className="text-center max-w-2xl mx-auto mb-10">
+                <div className="text-center max-w-2xl mx-auto mb-8">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-2">
                     <Zap className="w-3.5 h-3.5 text-blue-600" />
                     <span>Прозрачная тарифная сетка Cransys 2026</span>
@@ -274,7 +274,7 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 items-stretch">
                   {TIER_LIST.map((plan) => {
                     const isExpanded = Boolean(expandedTiers[plan.id]);
                     const visibleFeatures = isExpanded ? plan.features : plan.features.slice(0, 3);
@@ -283,7 +283,7 @@ export default function HomePage() {
                     return (
                       <div
                         key={plan.id}
-                        className={`rounded-2xl p-4 bg-white border flex flex-col justify-between transition-all relative ${
+                        className={`rounded-2xl p-4 bg-white border flex flex-col justify-between transition-all relative h-full ${
                           plan.popular
                             ? 'border-blue-600 shadow-md ring-2 ring-blue-600/10'
                             : plan.isEnterprise
@@ -302,7 +302,7 @@ export default function HomePage() {
                           </span>
                         )}
 
-                        <div>
+                        <div className="flex-1 flex flex-col">
                           <div className="flex items-center justify-between mb-1">
                             <h3 className="font-bold text-slate-900 text-sm">{plan.name}</h3>
                           </div>
@@ -313,63 +313,69 @@ export default function HomePage() {
                             </span>
                           </div>
 
-                          <p className="text-[11px] text-slate-500 mb-3 min-h-[32px] leading-snug">{plan.description}</p>
+                          <p className="text-[11px] text-slate-500 mb-2.5 h-[34px] leading-snug line-clamp-2">
+                            {plan.description}
+                          </p>
 
-                          <div className="mb-3">
-                            <span className="text-xl sm:text-2xl font-extrabold font-mono text-slate-900">
+                          <div className="mb-2.5 h-[48px] flex flex-col justify-center">
+                            <span className="text-xl sm:text-2xl font-extrabold font-mono text-slate-900 leading-none">
                               {plan.priceFormatted}
                             </span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">{plan.period}</span>
+                            <span className="text-[10px] text-slate-400 block mt-1">{plan.period}</span>
                           </div>
 
-                          {/* Беджи API и White-label */}
-                          <div className="mb-3 space-y-1">
+                          {/* Беджи API и White-label (строго фиксированная высота для идеального выравнивания) */}
+                          <div className="h-[46px] mb-3 flex flex-col justify-start gap-1">
                             {plan.hasDirectApi ? (
-                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100 w-full">
+                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100 w-full truncate">
                                 <KeyRound className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>Direct API включено</span>
+                                <span className="truncate">Direct API включено</span>
                               </div>
                             ) : (
-                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 text-[10px] font-medium w-full">
+                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 text-[10px] font-medium w-full truncate">
                                 <KeyRound className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span>Без API (файл)</span>
+                                <span className="truncate">Без API (файл)</span>
                               </div>
                             )}
 
-                            {plan.hasWhiteLabel && (
-                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-semibold border border-purple-100 w-full">
+                            {plan.hasWhiteLabel ? (
+                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-semibold border border-purple-100 w-full truncate">
                                 <Building2 className="w-3 h-3 text-purple-600 shrink-0" />
-                                <span>White-label брендинг</span>
+                                <span className="truncate">White-label брендинг</span>
                               </div>
+                            ) : (
+                              <div className="h-[20px] w-full" />
                             )}
                           </div>
 
                           {/* Список фичей с аккордеоном */}
-                          <div className="space-y-1.5 pt-3 border-t border-slate-100">
+                          <div className={`space-y-1.5 pt-3 border-t border-slate-100 flex-1 ${!isExpanded ? 'min-h-[82px]' : ''}`}>
                             {visibleFeatures.map((feat, idx) => (
                               <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-700 leading-tight">
                                 <Check className="w-3 h-3 text-blue-600 shrink-0 mt-0.5" />
-                                <span>{feat}</span>
+                                <span className="line-clamp-2">{feat}</span>
                               </div>
                             ))}
                           </div>
 
-                          {hasMoreFeatures && (
-                            <button
-                              type="button"
-                              onClick={() => toggleTierExpand(plan.id)}
-                              className="mt-2.5 inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
-                            >
-                              <span>
-                                {isExpanded
-                                  ? 'Скрыть подробности ▲'
-                                  : `Все возможности (${plan.features.length}) ▼`}
-                              </span>
-                            </button>
-                          )}
+                          <div className="h-[24px] mt-2 flex items-center">
+                            {hasMoreFeatures && (
+                              <button
+                                type="button"
+                                onClick={() => toggleTierExpand(plan.id)}
+                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                              >
+                                <span>
+                                  {isExpanded
+                                    ? 'Скрыть подробности ▲'
+                                    : `Все возможности (${plan.features.length}) ▼`}
+                                </span>
+                              </button>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="mt-5 pt-3 border-t border-slate-100">
+                        <div className="mt-4 pt-3 border-t border-slate-100">
                           <button
                             type="button"
                             onClick={() => handleOpenPricingForTier(plan.id)}
