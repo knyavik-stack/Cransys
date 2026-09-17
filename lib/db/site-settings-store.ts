@@ -29,6 +29,22 @@ export function getSiteSettings(): SiteSettings {
         memorySettings = {
           ...DEFAULT_SITE_SETTINGS,
           ...parsed,
+          seo: {
+            ...DEFAULT_SITE_SETTINGS.seo,
+            ...(parsed.seo || {}),
+          },
+          webmasters: {
+            ...DEFAULT_SITE_SETTINGS.webmasters,
+            ...(parsed.webmasters || {}),
+          },
+          analytics: {
+            ...DEFAULT_SITE_SETTINGS.analytics,
+            ...(parsed.analytics || {}),
+          },
+          customScripts: {
+            ...DEFAULT_SITE_SETTINGS.customScripts,
+            ...(parsed.customScripts || {}),
+          },
           socials: Array.isArray(parsed.socials) ? parsed.socials : DEFAULT_SITE_SETTINGS.socials,
         };
         return memorySettings;
@@ -45,6 +61,22 @@ export function updateSiteSettings(patch: Partial<SiteSettings>): SiteSettings {
   const updated: SiteSettings = {
     ...current,
     ...patch,
+    seo: {
+      ...current.seo,
+      ...(patch.seo || {}),
+    },
+    webmasters: {
+      ...current.webmasters,
+      ...(patch.webmasters || {}),
+    },
+    analytics: {
+      ...current.analytics,
+      ...(patch.analytics || {}),
+    },
+    customScripts: {
+      ...current.customScripts,
+      ...(patch.customScripts || {}),
+    },
   };
   memorySettings = updated;
   try {

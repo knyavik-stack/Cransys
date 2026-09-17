@@ -7,10 +7,40 @@ export interface SocialLinkItem {
   description?: string;
 }
 
+export interface SeoSettings {
+  mainTitle: string;
+  mainDescription: string;
+  keywords: string;
+  ogTitle: string;
+  ogDescription: string;
+  ogImageUrl: string;
+  robotsIndexing: 'all' | 'noindex, nofollow';
+}
+
+export interface WebmasterSettings {
+  yandexVerificationCode: string;
+  googleVerificationCode: string;
+}
+
+export interface AnalyticsSettings {
+  yandexMetrikaId: string;
+  yandexMetrikaWebvisor: boolean;
+  googleAnalyticsId: string;
+}
+
+export interface CustomScriptSettings {
+  headScript: string;
+  bodyScript: string;
+}
+
 export interface SiteSettings {
   supportEmail: string;
   companyName: string;
   socials: SocialLinkItem[];
+  seo: SeoSettings;
+  webmasters: WebmasterSettings;
+  analytics: AnalyticsSettings;
+  customScripts: CustomScriptSettings;
   bannerAnnouncement?: {
     enabled: boolean;
     text: string;
@@ -21,6 +51,28 @@ export interface SiteSettings {
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   supportEmail: 'cransys@yandex.ru',
   companyName: 'Cransys Analytics',
+  seo: {
+    mainTitle: 'Cransys — Автоматизированный аудит Яндекс.Директ',
+    mainDescription: 'Независимый автоматизированный аудит рекламных кампаний Яндекс.Директ. Поиск скрытых сливов бюджета в РСЯ, нецелевых запросов и мобильных аномалий за 2 минуты.',
+    keywords: 'аудит яндекс директ, проверка рекламы яндекс директ, слив бюджета рся, минус слова директ, анализ поисковых запросов яндекс, аудит контекстной рекламы онлайн, оптимизация директ 2026, cransys, 152-фз аудит директ',
+    ogTitle: 'Cransys — Автоматизированный аудит Яндекс.Директ',
+    ogDescription: 'Независимый аудит рекламных кампаний в Яндекс.Директ: выявление сливов в РСЯ, нецелевых фраз и мобильных аномалий за 2 минуты.',
+    ogImageUrl: '',
+    robotsIndexing: 'all',
+  },
+  webmasters: {
+    yandexVerificationCode: '',
+    googleVerificationCode: '',
+  },
+  analytics: {
+    yandexMetrikaId: '',
+    yandexMetrikaWebvisor: true,
+    googleAnalyticsId: '',
+  },
+  customScripts: {
+    headScript: '',
+    bodyScript: '',
+  },
   socials: [
     {
       id: 'telegram',

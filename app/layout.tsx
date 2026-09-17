@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { UserProvider } from '@/lib/auth/user-context';
+import { AnalyticsProvider } from '@/components/AnalyticsProvider';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cransys.ru';
 
@@ -116,6 +117,52 @@ const jsonLd = {
       },
     },
     {
+      '@type': 'FAQPage',
+      '@id': `${baseUrl}/#faq`,
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: 'Безопасен ли независимый аудит по 152-ФЗ РФ?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Да, на 100%. При загрузке отчета из Директа или через API передаются исключительно обезличенные статистические агрегаты: название кампании, клики, показы, расход и конверсии. Персональные данные ваших клиентов (ФИО, телефоны, email) не запрашиваются и не хранятся на серверах Cransys.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Сколько времени занимает проверка рекламных кампаний?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Анализ загруженного файла выгрузки занимает от 30 секунд до 2 минут. Прямое сканирование через API Яндекс.Директ выполняется в фоновом режиме за 1–2 минуты.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Чем Cransys отличается от стандартных рекомендаций Яндекс.Директа?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Директу выгодно увеличивать охват и расход бюджета, предлагая автотаргетинг и повышение ставок. Независимый алгоритм Cransys работает в интересах рекламодателя: находит неэффективные площадки РСЯ, нецелевой информационный трафик и мобильные аномалии, формируя четкое ТЗ на отключение сливов.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Как подключить рекламный кабинет Яндекс.Директ по API?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'В личном кабинете Cransys перейдите во вкладку подключения и нажмите "Авторизовать Яндекс ID". Мы запрашиваем только права на чтение статистики без возможности изменения настроек ваших кампаний.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Что входит в готовое ТЗ для подрядчика или директолога?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Готовый коммерческий PDF-отчет содержит список неэффективных площадок для добавления в запрещенные, список минус-фраз для поисковых кампаний, рекомендации по мобильным корректировкам и расчет сэкономленного бюджета.',
+          },
+        },
+      ],
+    },
+    {
       '@type': 'BreadcrumbList',
       itemListElement: [
         {
@@ -148,6 +195,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         suppressHydrationWarning
         className="bg-slate-50 text-slate-900 antialiased selection:bg-blue-100 selection:text-blue-900"
       >
+        <AnalyticsProvider />
         <UserProvider>{children}</UserProvider>
       </body>
     </html>

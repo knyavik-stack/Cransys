@@ -144,7 +144,7 @@ export default function AdminPage() {
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers' | 'settings'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers' | 'settings' | 'seo'>('analytics');
 
   // Состояние пользователей, тарифов и настроек сайта
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -800,6 +800,18 @@ export default function AdminPage() {
           >
             <Share2 className="w-3.5 h-3.5" />
             <span>Соцсети и контакты</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('seo')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'seo'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>SEO, Аналитика и Вебмастера</span>
           </button>
         </div>
 
@@ -1472,6 +1484,489 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: SEO, Аналитика и Вебмастера */}
+        {activeTab === 'seo' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Статус-карточки интеграций */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Яндекс.Метрика статус */}
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Яндекс.Метрика</span>
+                  <div className={`p-1.5 rounded-lg ${siteSettings.analytics?.yandexMetrikaId ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                    <Activity className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-lg font-bold font-mono text-white truncate">
+                  {siteSettings.analytics?.yandexMetrikaId ? siteSettings.analytics.yandexMetrikaId : 'Не подключено'}
+                </div>
+                <div className="mt-1 text-[11px] flex items-center gap-1">
+                  {siteSettings.analytics?.yandexMetrikaId ? (
+                    <span className="text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Активен {siteSettings.analytics.yandexMetrikaWebvisor ? '+ Вебвизор' : ''}</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">Счетчик не задан</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Google Analytics статус */}
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Google Analytics 4</span>
+                  <div className={`p-1.5 rounded-lg ${siteSettings.analytics?.googleAnalyticsId ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-800 text-slate-500'}`}>
+                    <BarChart3 className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-lg font-bold font-mono text-white truncate">
+                  {siteSettings.analytics?.googleAnalyticsId ? siteSettings.analytics.googleAnalyticsId : 'Не подключено'}
+                </div>
+                <div className="mt-1 text-[11px] flex items-center gap-1">
+                  {siteSettings.analytics?.googleAnalyticsId ? (
+                    <span className="text-blue-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>gtag.js активен</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">Поток GA4 не задан</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Яндекс.Вебмастер статус */}
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Яндекс.Вебмастер</span>
+                  <div className={`p-1.5 rounded-lg ${siteSettings.webmasters?.yandexVerificationCode ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-800 text-slate-500'}`}>
+                    <Search className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-lg font-bold font-mono text-white truncate">
+                  {siteSettings.webmasters?.yandexVerificationCode ? 'Верифицирован' : 'Не подтвержден'}
+                </div>
+                <div className="mt-1 text-[11px] flex items-center gap-1">
+                  {siteSettings.webmasters?.yandexVerificationCode ? (
+                    <span className="text-amber-400 font-mono text-[10px] truncate">
+                      tag: {siteSettings.webmasters.yandexVerificationCode.substring(0, 10)}...
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">Ожидает код подтверждения</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Google Search Console статус */}
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Search Console</span>
+                  <div className={`p-1.5 rounded-lg ${siteSettings.webmasters?.googleVerificationCode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                    <Globe className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-lg font-bold font-mono text-white truncate">
+                  {siteSettings.webmasters?.googleVerificationCode ? 'Верифицирован' : 'Не подтвержден'}
+                </div>
+                <div className="mt-1 text-[11px] flex items-center gap-1">
+                  {siteSettings.webmasters?.googleVerificationCode ? (
+                    <span className="text-emerald-400 font-mono text-[10px] truncate">
+                      code: {siteSettings.webmasters.googleVerificationCode.substring(0, 10)}...
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">Ожидает код Google</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Основные блоки настроек */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* БЛОК 1: Системы веб-аналитики */}
+              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+                      <BarChart3 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Системы аналитики</h4>
+                      <p className="text-[11px] text-slate-400">Яндекс.Метрика и Google Analytics 4</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Яндекс Метрика */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Номер счетчика Яндекс.Метрики
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.analytics?.yandexMetrikaId || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        analytics: {
+                          ...prev.analytics,
+                          yandexMetrikaId: e.target.value.trim(),
+                        },
+                      }))
+                    }
+                    placeholder="Например: 98765432"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    Автоматически подключает официальный скрипт Метрики на всех страницах сервиса.
+                  </p>
+                </div>
+
+                {/* Вебвизор чекбокс */}
+                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-200">
+                      Вебвизор, карта кликов и точный показатель отказов
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      Запись действий пользователей для анализа конверсий
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={siteSettings.analytics?.yandexMetrikaWebvisor ?? true}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        analytics: {
+                          ...prev.analytics,
+                          yandexMetrikaWebvisor: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="w-4 h-4 rounded text-blue-600 bg-slate-900 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+
+                {/* Google Analytics 4 */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Идентификатор потока Google Analytics 4 (Measurement ID)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.analytics?.googleAnalyticsId || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        analytics: {
+                          ...prev.analytics,
+                          googleAnalyticsId: e.target.value.trim(),
+                        },
+                      }))
+                    }
+                    placeholder="G-XXXXXXXXXX"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    Идентификатор потока данных из панели Google Analytics 4.
+                  </p>
+                </div>
+              </div>
+
+              {/* БЛОК 2: Панели вебмастеров */}
+              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+                      <Search className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Панели вебмастеров</h4>
+                      <p className="text-[11px] text-slate-400">Подтверждение прав в поисковиках</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Яндекс.Вебмастер */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-300">
+                      Код верификации Яндекс.Вебмастер
+                    </label>
+                    <a
+                      href="https://webmaster.yandex.ru/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>Открыть Вебмастер</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <input
+                    type="text"
+                    value={siteSettings.webmasters?.yandexVerificationCode || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        webmasters: {
+                          ...prev.webmasters,
+                          yandexVerificationCode: e.target.value.trim(),
+                        },
+                      }))
+                    }
+                    placeholder="Например: a1b2c3d4e5f6g7h8"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    Укажите значение атрибута content из метатега <code>&lt;meta name=&quot;yandex-verification&quot; content=&quot;...&quot; /&gt;</code>
+                  </p>
+                </div>
+
+                {/* Google Search Console */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-300">
+                      Код верификации Google Search Console
+                    </label>
+                    <a
+                      href="https://search.google.com/search-console"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>Search Console</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <input
+                    type="text"
+                    value={siteSettings.webmasters?.googleVerificationCode || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        webmasters: {
+                          ...prev.webmasters,
+                          googleVerificationCode: e.target.value.trim(),
+                        },
+                      }))
+                    }
+                    placeholder="Например: dX5v4B9x1Z8qL..."
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    Укажите значение content из метатега <code>&lt;meta name=&quot;google-site-verification&quot; content=&quot;...&quot; /&gt;</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* БЛОК 3: Внутренняя оптимизация On-Page SEO и Метатеги */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Внутренняя оптимизация (On-Page SEO и метатеги)</h4>
+                    <p className="text-[11px] text-slate-400">Настройка заголовков, описания для сниппетов в Яндексе и Google</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Meta Title */}
+                <div className="space-y-1.5 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-300">
+                      Главный заголовок сайта (Meta Title)
+                    </label>
+                    <span className="text-[10px] text-slate-500">
+                      Символов: {(siteSettings.seo?.mainTitle || '').length} / реком. 50–65
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={siteSettings.seo?.mainTitle || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        seo: {
+                          ...prev.seo,
+                          mainTitle: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Cransys — Автоматизированный аудит Яндекс.Директ"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Meta Description */}
+                <div className="space-y-1.5 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-300">
+                      Мета-описание для поисковых сниппетов (Meta Description)
+                    </label>
+                    <span className="text-[10px] text-slate-500">
+                      Символов: {(siteSettings.seo?.mainDescription || '').length} / реком. 120–160
+                    </span>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={siteSettings.seo?.mainDescription || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        seo: {
+                          ...prev.seo,
+                          mainDescription: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Независимый автоматизированный аудит рекламных кампаний Яндекс.Директ..."
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Keywords */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Ключевые слова (Keywords, через запятую)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.seo?.keywords || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        seo: {
+                          ...prev.seo,
+                          keywords: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="аудит яндекс директ, слив бюджета рся, минус слова..."
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Robots indexing */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Индексация роботами (Robots Meta Tag)
+                  </label>
+                  <select
+                    value={siteSettings.seo?.robotsIndexing || 'all'}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        seo: {
+                          ...prev.seo,
+                          robotsIndexing: e.target.value as 'all' | 'noindex, nofollow',
+                        },
+                      }))
+                    }
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Разрешить индексацию (index, follow) — для продакшена</option>
+                    <option value="noindex, nofollow">Запретить индексацию (noindex, nofollow) — техработы</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* БЛОК 4: Пользовательские скрипты и пиксели */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Пользовательские скрипты, пиксели и виджеты</h4>
+                    <p className="text-[11px] text-slate-400">Вставка дополнительных тегов (VK Реклама, чаты, трекеры)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Head Script */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Дополнительный скрипт в <code>&lt;head&gt;</code> (например, Пиксель ВК / Top.Mail)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={siteSettings.customScripts?.headScript || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        customScripts: {
+                          ...prev.customScripts,
+                          headScript: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="<!-- Вставьте JS или HTML код тега -->"
+                    className="w-full p-3 text-xs rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 font-mono focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Body Script */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Дополнительный скрипт перед закрывающим <code>&lt;/body&gt;</code> (виджеты чатов)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={siteSettings.customScripts?.bodyScript || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        customScripts: {
+                          ...prev.customScripts,
+                          bodyScript: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="<!-- Вставьте код онлайн-виджета -->"
+                    className="w-full p-3 text-xs rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 font-mono focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Фиксированная кнопка сохранения */}
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Все изменения применяются мгновенно ко всем пользователям платформы</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveSettings}
+                disabled={isSavingSettings}
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 cursor-pointer transition-all"
+              >
+                {isSavingSettings ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Сохранение параметров...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Сохранить настройки SEO и Аналитики</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}

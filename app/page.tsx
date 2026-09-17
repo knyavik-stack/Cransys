@@ -31,6 +31,7 @@ import { TIER_LIST, UserTier } from '@/lib/billing/tiers';
 import { mockMeblironData } from '@/tests/fixtures/mebliron';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { useUser } from '@/lib/auth/user-context';
+import { FaqSection } from '@/components/FaqSection';
 
 export default function HomePage() {
   const { user, incrementReportsUsed } = useUser();
@@ -397,6 +398,9 @@ export default function HomePage() {
                 </div>
               </div>
             </section>
+
+            {/* База знаний / FAQ для On-Page SEO */}
+            <FaqSection />
           </>
         )}
       </main>
