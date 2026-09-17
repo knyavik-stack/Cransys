@@ -117,6 +117,7 @@ export async function getDirectConnectionByUserId(userId: string): Promise<Yande
   if (sql) {
     try {
       await ensureDatabaseReady();
+      // 1. Точный поиск по userId
       const rows = await sql`
         SELECT 
           id,
@@ -138,12 +139,43 @@ export async function getDirectConnectionByUserId(userId: string): Promise<Yande
       if (rows && rows.length > 0) {
         return rows[0] as YandexDirectConnection;
       }
+
+      // 2. Fallback: поиск по current_user или последнему активному подключению
+      const fallbackRows = await sql`
+        SELECT 
+          id,
+          user_id as "userId",
+          user_email as "userEmail",
+          access_token as "accessToken",
+          refresh_token as "refreshToken",
+          expires_in as "expiresIn",
+          login,
+          connected_at as "connectedAt",
+          last_sync_at as "lastSyncAt",
+          status
+        FROM public.yandex_connections
+        WHERE (user_id = 'current_user' OR user_id LIKE 'usr_%') AND status = 'ACTIVE'
+        ORDER BY connected_at DESC
+        LIMIT 1;
+      `;
+
+      if (fallbackRows && fallbackRows.length > 0) {
+        return fallbackRows[0] as YandexDirectConnection;
+      }
     } catch (e) {
       console.warn('Error querying Yandex connection from Neon DB:', e);
     }
   }
 
-  return memoryConnections.find((c) => c.userId === userId && c.status === 'ACTIVE') || null;
+  const exact = memoryConnections.find((c) => c.userId === userId && c.status === 'ACTIVE');
+  if (exact) return exact;
+
+  // Fallback в памяти: последнее активное подключение
+  const fallback = memoryConnections
+    .filter((c) => c.status === 'ACTIVE')
+    .sort((a, b) => new Date(b.connectedAt).getTime() - new Date(a.connectedAt).getTime())[0];
+
+  return fallback || null;
 }
 
 export async function disconnectDirect(userId: string): Promise<boolean> {

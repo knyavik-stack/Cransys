@@ -139,47 +139,47 @@ export function CookieConsentBanner() {
 
   return (
     <>
-      {/* 1. ПЛАВАЮЩИЙ БАННЕР ВНИЗУ ЭКРАНА */}
+      {/* 1. ПЛАВАЮЩИЙ БАННЕР ВНИЗУ ЭКРАНА (СВЕТЛЫЙ, КОМПАКТНЫЙ, НЕ МЕШАЮЩИЙ) */}
       {isVisible && !isModalOpen && (
         <div
           id="cookie-consent-banner"
-          className="fixed bottom-3 sm:bottom-5 left-3 sm:left-5 right-3 sm:right-5 max-w-4xl mx-auto z-50 animate-fadeIn"
+          className="fixed bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 max-w-4xl mx-auto z-50 animate-fadeIn"
         >
-          <div className="bg-slate-900/95 backdrop-blur-md text-white p-4 sm:p-5 rounded-2xl border border-slate-700/80 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="bg-white/95 backdrop-blur-md text-slate-800 py-2.5 sm:py-3 px-3.5 sm:px-5 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-900/8 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
             
-            <div className="flex items-start gap-3.5 flex-1 pr-2">
-              <div className="p-2.5 rounded-xl bg-blue-600/20 text-blue-400 shrink-0 border border-blue-500/30">
-                <Cookie className="w-5 h-5" />
+            <div className="flex items-center gap-3 flex-1 min-w-0 pr-1">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 shrink-0 border border-blue-100/80 flex items-center justify-center">
+                <Cookie className="w-4 h-4" />
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs sm:text-sm font-bold text-white tracking-wide">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
                     {bannerConfig.title || 'Файлы cookie и конфиденциальность'}
                   </h4>
-                  <span className="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                    152-ФЗ РФ
+                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-1.5 py-0.2 rounded-md">
+                    152-ФЗ
                   </span>
                 </div>
-                <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed max-w-2xl">
+                <p className="text-[11px] sm:text-xs text-slate-500 leading-snug mt-0.5 max-w-2xl line-clamp-2 sm:line-clamp-none">
                   {bannerConfig.description || DEFAULT_SITE_SETTINGS.cookieBanner.description}{' '}
                   <Link
                     href={bannerConfig.policyUrl || '/legal/cookies'}
-                    className="text-blue-400 hover:text-blue-300 underline font-medium"
+                    className="text-blue-600 hover:text-blue-700 underline font-medium"
                   >
-                    Подробнее в Политике cookie
+                    Политика cookie
                   </Link>.
                 </p>
               </div>
             </div>
 
             {/* Кнопки действий */}
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto shrink-0 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto shrink-0 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-semibold border border-slate-200 transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Settings className="w-3.5 h-3.5" />
+                <Settings className="w-3.5 h-3.5 text-slate-400" />
                 <span>Настроить</span>
               </button>
 
@@ -187,7 +187,7 @@ export function CookieConsentBanner() {
                 <button
                   type="button"
                   onClick={handleAcceptNecessaryOnly}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-semibold border border-slate-200 transition-all cursor-pointer"
                 >
                   Только необходимые
                 </button>
@@ -196,7 +196,7 @@ export function CookieConsentBanner() {
               <button
                 type="button"
                 onClick={handleAcceptAll}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Принять все</span>
@@ -206,60 +206,60 @@ export function CookieConsentBanner() {
         </div>
       )}
 
-      {/* 2. ДЕТАЛЬНОЕ МОДАЛЬНОЕ ОКНО НАСТРОЙКИ COOKIE */}
+      {/* 2. ДЕТАЛЬНОЕ МОДАЛЬНОЕ ОКНО НАСТРОЙКИ COOKIE (СВЕТЛОЕ) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-xl rounded-2xl shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white border border-slate-200 text-slate-900 w-full max-w-xl rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             
             {/* Заголовок модалки */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
                   <Cookie className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Центр управления файлами cookie</h3>
-                  <p className="text-[11px] text-slate-400">Настройка согласий в соответствии с 152-ФЗ РФ</p>
+                  <h3 className="text-sm font-bold text-slate-900">Центр управления файлами cookie</h3>
+                  <p className="text-[11px] text-slate-500">Настройка согласий в соответствии с 152-ФЗ РФ</p>
                 </div>
               </div>
 
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Описание */}
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Мы уважаем вашу конфиденциальность. Вы можете выбрать, какие типы файлов cookie разрешить платформе использовать во время вашей работы.
             </p>
 
             {/* Список категорий */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {/* Категория 1: Обязательные технические */}
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Lock className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-xs font-bold text-white">Обязательные технические cookie</span>
+                    <Lock className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="text-xs font-bold text-slate-900">Обязательные технические cookie</span>
                   </div>
-                  <span className="text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full">
                     Всегда активны
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
                   Необходимы для авторизации, защиты от CSRF-атак, сохранения текущего состояния сессии и фиксации настроек конфиденциальности. Не собирают личные данные третьих лиц.
                 </p>
               </div>
 
               {/* Категория 2: Аналитические */}
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-xs font-bold text-white">Аналитические cookie (Яндекс.Метрика, GA4)</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-900">Аналитические cookie (Яндекс.Метрика, GA4)</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -268,20 +268,20 @@ export function CookieConsentBanner() {
                       onChange={(e) => setAnalyticsAllowed(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-slate-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-9 h-5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
                   Помогают нам собирать обезличенную статистику использования сервиса, оценивать удобство интерфейса и скорость работы отчетов аудита.
                 </p>
               </div>
 
               {/* Категория 3: Маркетинговые */}
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-xs font-bold text-white">Маркетинговые пиксели и трекеры</span>
+                    <Shield className="w-3.5 h-3.5 text-amber-600" />
+                    <span className="text-xs font-bold text-slate-900">Маркетинговые пиксели и трекеры</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -290,21 +290,21 @@ export function CookieConsentBanner() {
                       onChange={(e) => setMarketingAllowed(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-slate-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-9 h-5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
                   Используются для оценки эффективности рекламных объявлений и показа релевантной информации о тарифах сервиса.
                 </p>
               </div>
             </div>
 
             {/* Подвал модалки с кнопками */}
-            <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
               <Link
                 href="/legal/cookies"
                 onClick={() => setIsModalOpen(false)}
-                className="text-[11px] text-blue-400 hover:underline"
+                className="text-[11px] text-blue-600 hover:underline"
               >
                 Читать полную Политику файлов cookie
               </Link>
@@ -313,7 +313,7 @@ export function CookieConsentBanner() {
                 <button
                   type="button"
                   onClick={handleAcceptNecessaryOnly}
-                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer transition-colors"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   Отклонить необязательные
                 </button>
@@ -321,9 +321,9 @@ export function CookieConsentBanner() {
                 <button
                   type="button"
                   onClick={handleSaveCustom}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 cursor-pointer transition-all"
+                  className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer transition-all"
                 >
-                  Сохранить мой выбор
+                  Сохранить выбор
                 </button>
               </div>
             </div>
