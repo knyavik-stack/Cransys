@@ -37,6 +37,14 @@ import {
   Save,
   Check,
   X,
+  Share2,
+  Send,
+  Globe,
+  Video,
+  MessageSquare,
+  ExternalLink,
+  FileText,
+  Plus,
 } from 'lucide-react';
 import {
   BarChart,
@@ -55,6 +63,7 @@ import {
 } from 'recharts';
 import { useUser } from '@/lib/auth/user-context';
 import { UserTier, TierDefinition, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
+import { DEFAULT_SITE_SETTINGS, SiteSettings, SocialLinkItem } from '@/lib/settings/types';
 
 export interface AdminUserRecord {
   id: string;
@@ -134,11 +143,13 @@ export default function AdminPage() {
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers' | 'settings'>('analytics');
 
-  // Состояние пользователей и тарифов
+  // Состояние пользователей, тарифов и настроек сайта
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [tiersConfig, setTiersConfig] = useState<Record<UserTier, TierDefinition>>(TIER_CONFIGS);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
@@ -196,6 +207,18 @@ export default function AdminPage() {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      if (data.success && data.settings) {
+        setSiteSettings(data.settings);
+      }
+    } catch (e) {
+      console.error('Error loading site settings:', e);
+    }
+  };
+
   useEffect(() => {
     let isCancelled = false;
     if (isAdmin) {
@@ -216,11 +239,74 @@ export default function AdminPage() {
           }
         })
         .catch((e) => console.error('Error loading tiers:', e));
+
+      fetch('/api/settings')
+        .then((res) => res.json())
+        .then((data) => {
+          if (!isCancelled && data.success && data.settings) {
+            setSiteSettings(data.settings);
+          }
+        })
+        .catch((e) => console.error('Error loading settings:', e));
     }
     return () => {
       isCancelled = true;
     };
   }, [isAdmin]);
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: siteSettings }),
+      });
+      const data = await res.json();
+      if (data.success && data.settings) {
+        setSiteSettings(data.settings);
+        showNotification('Настройки соцсетей и подвала успешно сохранены!');
+      } else {
+        showNotification(data.error || 'Ошибка при сохранении настроек');
+      }
+    } catch {
+      showNotification('Сетевая ошибка при сохранении настроек');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleSocialChange = (id: string, field: keyof SocialLinkItem, value: any) => {
+    setSiteSettings((prev) => ({
+      ...prev,
+      socials: prev.socials.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+
+  const handleAddSocialItem = () => {
+    const newId = `custom_${Date.now()}`;
+    const newItem: SocialLinkItem = {
+      id: newId,
+      name: 'Новая соцсеть',
+      url: 'https://',
+      enabled: true,
+      icon: 'mail',
+      description: 'Канал связи',
+    };
+    setSiteSettings((prev) => ({
+      ...prev,
+      socials: [...prev.socials, newItem],
+    }));
+  };
+
+  const handleDeleteSocialItem = (id: string) => {
+    setSiteSettings((prev) => ({
+      ...prev,
+      socials: prev.socials.filter((s) => s.id !== id),
+    }));
+  };
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -704,6 +790,18 @@ export default function AdminPage() {
             <PieChartIcon className="w-3.5 h-3.5" />
             <span>Воронка и конверсии</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'settings'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+            }`}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Соцсети и контакты</span>
+          </button>
         </div>
 
         {/* TAB 1: Сводная аналитика */}
@@ -1129,6 +1227,249 @@ export default function AdminPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: Соцсети и контактные данные платформы */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Share2 className="w-5 h-5 text-blue-400" />
+                  <span>Управление ссылками на соцсети и контактами</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Настройте каналы коммуникации, сообщества и ссылки, отображаемые в подвале (Footer) на всех страницах сервиса.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleAddSocialItem}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Добавить канал</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveSettings}
+                  disabled={isSavingSettings}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-1.5 transition-all"
+                >
+                  <Save className={`w-3.5 h-3.5 ${isSavingSettings ? 'animate-spin' : ''}`} />
+                  <span>{isSavingSettings ? 'Сохранение...' : 'Сохранить настройки'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Список социальных сетей */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <h4 className="text-sm font-bold text-white">Список социальных сетей и сообществ</h4>
+                    <span className="text-[11px] text-slate-400">
+                      Активно: {siteSettings.socials.filter((s) => s.enabled).length} из {siteSettings.socials.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {siteSettings.socials.map((soc) => (
+                      <div
+                        key={soc.id}
+                        className={`p-4 rounded-xl border transition-all ${
+                          soc.enabled
+                            ? 'bg-slate-950/90 border-slate-700/80'
+                            : 'bg-slate-950/40 border-slate-800/40 opacity-70'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <label className="relative flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={soc.enabled}
+                                onChange={(e) =>
+                                  handleSocialChange(soc.id, 'enabled', e.target.checked)
+                                }
+                                className="w-4 h-4 rounded text-blue-600 bg-slate-900 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </label>
+
+                            <div className="flex items-center gap-2">
+                              {soc.icon === 'telegram' && <Send className="w-4 h-4 text-sky-400" />}
+                              {soc.icon === 'vk' && <Globe className="w-4 h-4 text-blue-400" />}
+                              {soc.icon === 'youtube' && <Video className="w-4 h-4 text-red-400" />}
+                              {soc.icon === 'vc' && <FileText className="w-4 h-4 text-emerald-400" />}
+                              {soc.icon === 'habr' && <MessageSquare className="w-4 h-4 text-cyan-400" />}
+                              {soc.icon === 'whatsapp' && <MessageSquare className="w-4 h-4 text-emerald-400" />}
+                              {soc.icon === 'mail' && <Mail className="w-4 h-4 text-purple-400" />}
+                              <input
+                                type="text"
+                                value={soc.name}
+                                onChange={(e) => handleSocialChange(soc.id, 'name', e.target.value)}
+                                className="bg-transparent font-bold text-white text-xs border-b border-transparent hover:border-slate-600 focus:border-blue-500 focus:outline-none px-1 py-0.5"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                soc.enabled
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-slate-800 text-slate-500'
+                              }`}
+                            >
+                              {soc.enabled ? 'Отображается' : 'Скрыто'}
+                            </span>
+
+                            {soc.url.startsWith('http') && (
+                              <a
+                                href={soc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-slate-800 transition-colors"
+                                title="Проверить ссылку в новом окне"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+
+                            {soc.id.startsWith('custom_') && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSocialItem(soc.id)}
+                                className="p-1 rounded-lg text-red-400 hover:bg-red-950/50 transition-colors"
+                                title="Удалить"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-400 mb-1">
+                              URL-адрес / Ссылка:
+                            </label>
+                            <input
+                              type="text"
+                              value={soc.url}
+                              onChange={(e) => handleSocialChange(soc.id, 'url', e.target.value)}
+                              placeholder="https://..."
+                              className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-400 mb-1">
+                              Описание / Всплывающая подсказка:
+                            </label>
+                            <input
+                              type="text"
+                              value={soc.description || ''}
+                              onChange={(e) =>
+                                handleSocialChange(soc.id, 'description', e.target.value)
+                              }
+                              placeholder="Канал с разборами..."
+                              className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-800 text-slate-300 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Правая колонка: Основные контакты и Live Preview */}
+              <div className="space-y-6">
+                <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+                  <h4 className="text-sm font-bold text-white pb-3 border-b border-slate-800">
+                    Контакты службы поддержки
+                  </h4>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Email службы поддержки
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={siteSettings.supportEmail}
+                        onChange={(e) =>
+                          setSiteSettings((p) => ({ ...p, supportEmail: e.target.value }))
+                        }
+                        placeholder="cransys@yandex.ru"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                      />
+                      <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Отображается в подвале, юридических страницах и уведомлениях.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Предпросмотр (Live Preview) в подвале */}
+                <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                      <Eye className="w-4 h-4 text-emerald-400" />
+                      <span>Предпросмотр в футере</span>
+                    </h4>
+                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      Live Preview
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-white text-slate-800 border border-slate-200 text-xs space-y-3">
+                    <div className="text-[11px] font-bold text-slate-900">
+                      Мы в сообществах и медиа:
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {siteSettings.socials.filter((s) => s.enabled && s.url.trim() !== '').length === 0 ? (
+                        <span className="text-slate-400 text-[11px] italic">
+                          Все ссылки скрыты или выключены
+                        </span>
+                      ) : (
+                        siteSettings.socials
+                          .filter((s) => s.enabled && s.url.trim() !== '')
+                          .map((soc) => (
+                            <span
+                              key={soc.id}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-700 shadow-2xs"
+                            >
+                              {soc.icon === 'telegram' && <Send className="w-3 h-3 text-sky-500" />}
+                              {soc.icon === 'vk' && <Globe className="w-3 h-3 text-blue-600" />}
+                              {soc.icon === 'youtube' && <Video className="w-3 h-3 text-red-500" />}
+                              {soc.icon === 'vc' && <FileText className="w-3 h-3 text-emerald-600" />}
+                              {soc.icon === 'habr' && <MessageSquare className="w-3 h-3 text-cyan-600" />}
+                              {soc.icon === 'whatsapp' && <MessageSquare className="w-3 h-3 text-emerald-500" />}
+                              {soc.icon === 'mail' && <Mail className="w-3 h-3 text-purple-600" />}
+                              <span>{soc.name}</span>
+                            </span>
+                          ))
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center gap-1 text-[11px] text-slate-500">
+                      <Mail className="w-3 h-3 text-blue-600" />
+                      <span className="font-mono text-slate-700 font-semibold">
+                        {siteSettings.supportEmail || 'cransys@yandex.ru'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

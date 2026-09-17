@@ -1,16 +1,76 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Shield, Lock, CheckCircle2, Mail, FileText, Scale } from 'lucide-react';
+import { 
+  Shield, 
+  Lock, 
+  CheckCircle2, 
+  Mail, 
+  FileText, 
+  Scale, 
+  Send, 
+  Video, 
+  MessageSquare, 
+  Globe, 
+  ExternalLink 
+} from 'lucide-react';
 import { Logo } from '@/components/Logo';
+import { DEFAULT_SITE_SETTINGS, SocialLinkItem } from '@/lib/settings/types';
 
 export function Footer() {
+  const [socials, setSocials] = useState<SocialLinkItem[]>(DEFAULT_SITE_SETTINGS.socials);
+  const [supportEmail, setSupportEmail] = useState(DEFAULT_SITE_SETTINGS.supportEmail);
+
+  useEffect(() => {
+    let isCancelled = false;
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isCancelled && data.success && data.settings) {
+          if (Array.isArray(data.settings.socials)) {
+            setSocials(data.settings.socials);
+          }
+          if (data.settings.supportEmail) {
+            setSupportEmail(data.settings.supportEmail);
+          }
+        }
+      })
+      .catch((e) => {
+        console.warn('Could not load dynamic footer settings, using defaults', e);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const enabledSocials = socials.filter((s) => s.enabled && s.url.trim() !== '');
+
+  const renderSocialIcon = (iconType: string) => {
+    switch (iconType) {
+      case 'telegram':
+        return <Send className="w-3.5 h-3.5 text-sky-500" />;
+      case 'vk':
+        return <Globe className="w-3.5 h-3.5 text-blue-600" />;
+      case 'youtube':
+        return <Video className="w-3.5 h-3.5 text-red-500" />;
+      case 'vc':
+        return <FileText className="w-3.5 h-3.5 text-emerald-600" />;
+      case 'habr':
+        return <MessageSquare className="w-3.5 h-3.5 text-cyan-600" />;
+      case 'whatsapp':
+        return <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />;
+      default:
+        return <ExternalLink className="w-3.5 h-3.5 text-slate-400" />;
+    }
+  };
+
   return (
     <footer className="w-full bg-white text-slate-600 border-t border-slate-200/80 py-10 text-xs">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 mb-8">
-          {/* Колонка 1: Бренд и миссия */}
+          {/* Колонка 1: Бренд, миссия и Соцсети */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Logo size={28} className="shrink-0" />
@@ -36,6 +96,30 @@ export function Footer() {
                 Zero Retention
               </span>
             </div>
+
+            {/* Блок Социальных сетей */}
+            {enabledSocials.length > 0 && (
+              <div className="pt-2">
+                <span className="text-[11px] font-semibold text-slate-700 block mb-2">
+                  Мы в сообществах и медиа:
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {enabledSocials.map((soc) => (
+                    <a
+                      key={soc.id}
+                      href={soc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50/80 hover:bg-blue-50 hover:border-blue-200 text-slate-700 hover:text-blue-700 text-[11px] font-medium transition-all shadow-2xs"
+                      title={soc.description || soc.name}
+                    >
+                      {renderSocialIcon(soc.icon)}
+                      <span>{soc.name}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Колонка 2: Навигация */}
@@ -110,11 +194,11 @@ export function Footer() {
             <div className="pt-3 border-t border-slate-100">
               <span className="text-[11px] text-slate-400 block mb-1">Служба поддержки:</span>
               <a
-                href="mailto:cransys@yandex.ru"
+                href={`mailto:${supportEmail}`}
                 className="text-slate-700 font-semibold hover:text-blue-600 transition-colors inline-flex items-center gap-1.5 font-mono text-xs"
               >
                 <Mail className="w-3.5 h-3.5 text-blue-600" />
-                <span>cransys@yandex.ru</span>
+                <span>{supportEmail}</span>
               </a>
             </div>
           </div>
