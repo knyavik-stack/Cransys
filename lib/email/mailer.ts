@@ -15,10 +15,10 @@ interface SendPasswordResetEmailOptions {
 let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
 
 function getTransporter(): ReturnType<typeof nodemailer.createTransport> | null {
-  const host = process.env.SMTP_HOST || 'smtp.yandex.ru';
+  const host = (process.env.SMTP_HOST || 'smtp.yandex.ru').trim();
   const port = Number(process.env.SMTP_PORT) || 465;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const user = (process.env.SMTP_USER || '').trim().replace(/^['"]|['"]$/g, '');
+  const pass = (process.env.SMTP_PASS || '').trim().replace(/^['"]|['"]$/g, '');
 
   if (!user || !pass) {
     return null;
@@ -33,6 +33,9 @@ function getTransporter(): ReturnType<typeof nodemailer.createTransport> | null 
         user,
         pass,
       },
+      connectionTimeout: 4000,
+      greetingTimeout: 3000,
+      socketTimeout: 5000,
       tls: {
         rejectUnauthorized: false,
       },

@@ -73,10 +73,13 @@ async function sync() {
 
   // Получаем существующие переменные
   const existingRes = await apiRequest('GET', `/v9/projects/${PROJECT_ID_OR_NAME}/env`);
-  const existingKeys = new Map();
+  const existingKeys = new Map(); // key -> Array of IDs
   if (existingRes.status === 200 && Array.isArray(existingRes.data?.envs)) {
     for (const env of existingRes.data.envs) {
-      existingKeys.set(env.key, env.id);
+      if (!existingKeys.has(env.key)) {
+        existingKeys.set(env.key, []);
+      }
+      existingKeys.get(env.key).push(env.id);
     }
   }
 
@@ -88,12 +91,13 @@ async function sync() {
     }
 
     if (existingKeys.has(key)) {
-      const envId = existingKeys.get(key);
-      const updateRes = await apiRequest('PATCH', `/v9/projects/${PROJECT_ID_OR_NAME}/env/${envId}`, {
-        value: val,
-        target: ['production', 'preview', 'development'],
-      });
-      console.log(`✓ Обновлен ${key} в Vercel (статус: ${updateRes.status})`);
+      const envIds = existingKeys.get(key);
+      for (const envId of envIds) {
+        const updateRes = await apiRequest('PATCH', `/v9/projects/${PROJECT_ID_OR_NAME}/env/${envId}`, {
+          value: val,
+        });
+        console.log(`✓ Обновлен ${key} (${envId}) в Vercel (статус: ${updateRes.status})`);
+      }
     } else {
       const createRes = await apiRequest('POST', `/v10/projects/${PROJECT_ID_OR_NAME}/env`, {
         key,

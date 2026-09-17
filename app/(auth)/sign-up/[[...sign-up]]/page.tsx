@@ -57,11 +57,13 @@ export default function SignUpPage() {
     }
 
     setIsSubmitting(true);
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email: cleanEmail, password, name }),
       });
 
       const data = await response.json();
@@ -98,11 +100,13 @@ export default function SignUpPage() {
     setErrorMsg('');
     setSuccessMsg('');
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       const response = await fetch('/api/auth/verify-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: verificationCode.trim() }),
+        body: JSON.stringify({ email: cleanEmail, code: verificationCode.trim() }),
       });
 
       const data = await response.json();
@@ -134,11 +138,13 @@ export default function SignUpPage() {
     setIsResending(true);
     setErrorMsg('');
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       const res = await fetch('/api/auth/resend-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: cleanEmail }),
       });
 
       const data = await res.json();

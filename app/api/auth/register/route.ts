@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Проверка требований безопасности пароля
     const passwordCheck = checkPasswordSecurity(password);
     if (!passwordCheck.valid) {
@@ -29,8 +31,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = await findUserByEmail(email);
-    if (existing) {
+    const existing = await findUserByEmail(normalizedEmail);
+    if (existing && existing.emailVerified) {
       return NextResponse.json(
         {
           success: false,
@@ -45,9 +47,9 @@ export async function POST(req: NextRequest) {
     const verificationExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
     const newUser = await createUser({
-      email,
+      email: normalizedEmail,
       password,
-      name: name || email.split('@')[0],
+      name: (name || normalizedEmail.split('@')[0]).trim(),
       tier: defaultTier,
       role: 'USER',
       hasPaid: false,
@@ -57,8 +59,8 @@ export async function POST(req: NextRequest) {
     });
 
     // Отправка реального письма через Яндекс SMTP
-    await sendVerificationEmail({
-      to: email,
+    const mailResult = await sendVerificationEmail({
+      to: normalizedEmail,
       code: verificationCode,
       name: newUser.name,
     });
