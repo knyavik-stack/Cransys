@@ -45,6 +45,10 @@ export function getSiteSettings(): SiteSettings {
             ...DEFAULT_SITE_SETTINGS.customScripts,
             ...(parsed.customScripts || {}),
           },
+          cookieBanner: {
+            ...DEFAULT_SITE_SETTINGS.cookieBanner,
+            ...(parsed.cookieBanner || {}),
+          },
           socials: Array.isArray(parsed.socials) ? parsed.socials : DEFAULT_SITE_SETTINGS.socials,
         };
         return memorySettings;
@@ -76,6 +80,10 @@ export function updateSiteSettings(patch: Partial<SiteSettings>): SiteSettings {
     customScripts: {
       ...current.customScripts,
       ...(patch.customScripts || {}),
+    },
+    cookieBanner: {
+      ...current.cookieBanner,
+      ...(patch.cookieBanner || {}),
     },
   };
   memorySettings = updated;

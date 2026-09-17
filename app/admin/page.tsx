@@ -46,6 +46,7 @@ import {
   ExternalLink,
   FileText,
   Plus,
+  Cookie,
 } from 'lucide-react';
 import {
   BarChart,
@@ -64,7 +65,7 @@ import {
 } from 'recharts';
 import { useUser } from '@/lib/auth/user-context';
 import { UserTier, TierDefinition, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
-import { DEFAULT_SITE_SETTINGS, SiteSettings, SocialLinkItem } from '@/lib/settings/types';
+import { DEFAULT_SITE_SETTINGS, SiteSettings, SocialLinkItem, CookieConsentStats, CookieConsentRecord } from '@/lib/settings/types';
 
 export interface AdminUserRecord {
   id: string;
@@ -144,7 +145,7 @@ export default function AdminPage() {
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers' | 'settings' | 'seo'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers' | 'settings' | 'seo' | 'privacy'>('analytics');
 
   // Состояние пользователей, тарифов и настроек сайта
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -154,6 +155,17 @@ export default function AdminPage() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
+
+  // 152-ФЗ Cookie согласия и аналитика
+  const [cookieStats, setCookieStats] = useState<CookieConsentStats>({
+    totalPrompts: 0,
+    acceptedAll: 0,
+    acceptedNecessary: 0,
+    acceptedCustom: 0,
+    lastUpdated: '',
+  });
+  const [cookieLogs, setCookieLogs] = useState<CookieConsentRecord[]>([]);
+  const [isLoadingCookieData, setIsLoadingCookieData] = useState(false);
 
   // Модальные окна управления пользователем
   const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null);
@@ -220,6 +232,24 @@ export default function AdminPage() {
     }
   };
 
+  const fetchCookieConsents = async () => {
+    setIsLoadingCookieData(true);
+    try {
+      const res = await fetch('/api/legal/cookie-consent');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          if (data.stats) setCookieStats(data.stats);
+          if (Array.isArray(data.recentLogs)) setCookieLogs(data.recentLogs);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading cookie consent stats:', e);
+    } finally {
+      setIsLoadingCookieData(false);
+    }
+  };
+
   useEffect(() => {
     let isCancelled = false;
     if (isAdmin) {
@@ -249,6 +279,16 @@ export default function AdminPage() {
           }
         })
         .catch((e) => console.error('Error loading settings:', e));
+
+      fetch('/api/legal/cookie-consent')
+        .then((res) => res.json())
+        .then((data) => {
+          if (!isCancelled && data.success) {
+            if (data.stats) setCookieStats(data.stats);
+            if (Array.isArray(data.recentLogs)) setCookieLogs(data.recentLogs);
+          }
+        })
+        .catch((e) => console.error('Error loading cookie consents:', e));
     }
     return () => {
       isCancelled = true;
@@ -812,6 +852,21 @@ export default function AdminPage() {
           >
             <Globe className="w-3.5 h-3.5" />
             <span>SEO, Аналитика и Вебмастера</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('privacy');
+              fetchCookieConsents();
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'privacy'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+            }`}
+          >
+            <Cookie className="w-3.5 h-3.5" />
+            <span>152-ФЗ и Cookie</span>
           </button>
         </div>
 
@@ -1964,6 +2019,436 @@ export default function AdminPage() {
                   <>
                     <Save className="w-4 h-4" />
                     <span>Сохранить настройки SEO и Аналитики</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 7: 152-ФЗ и Управление Cookie */}
+        {activeTab === 'privacy' && (
+          <div className="space-y-6">
+            {/* Карточки аналитики согласий */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Всего запросов</span>
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+                    <Cookie className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-white font-mono">{cookieStats.totalPrompts}</div>
+                <div className="mt-1 text-[11px] text-slate-400">
+                  Фиксаций согласия в соответствии с 152-ФЗ
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Принято полностью</span>
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-emerald-400 font-mono">
+                  {cookieStats.acceptedAll}{' '}
+                  <span className="text-sm font-normal text-slate-400">
+                    ({cookieStats.totalPrompts > 0 ? Math.round((cookieStats.acceptedAll / cookieStats.totalPrompts) * 100) : 0}%)
+                  </span>
+                </div>
+                <div className="mt-1 text-[11px] text-emerald-400">
+                  Разрешена полная аналитика и метрики
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Только технические</span>
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+                    <Shield className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-amber-400 font-mono">
+                  {cookieStats.acceptedNecessary}{' '}
+                  <span className="text-sm font-normal text-slate-400">
+                    ({cookieStats.totalPrompts > 0 ? Math.round((cookieStats.acceptedNecessary / cookieStats.totalPrompts) * 100) : 0}%)
+                  </span>
+                </div>
+                <div className="mt-1 text-[11px] text-slate-400">
+                  Отказ от трекеров и маркетинга
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Выборочно</span>
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-purple-400 font-mono">
+                  {cookieStats.acceptedCustom}{' '}
+                  <span className="text-sm font-normal text-slate-400">
+                    ({cookieStats.totalPrompts > 0 ? Math.round((cookieStats.acceptedCustom / cookieStats.totalPrompts) * 100) : 0}%)
+                  </span>
+                </div>
+                <div className="mt-1 text-[11px] text-slate-400">
+                  Настроено индивидуально
+                </div>
+              </div>
+            </div>
+
+            {/* БЛОК НАСТРОЕК БАННЕРА И ПРАВОВЫХ НОРМ 152-ФЗ */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Параметры Cookie-баннера и политики конфиденциальности</h3>
+                    <p className="text-xs text-slate-400">
+                      Соответствие Федеральному закону РФ № 152-ФЗ «О персональных данных» и требованиям Роскомнадзора
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        localStorage.removeItem('cransys_cookie_consent_v1');
+                        showNotification('Локальное согласие сброшено! Перезагрузите страницу для теста баннера.');
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Сбросить тест баннера</span>
+                  </button>
+
+                  <a
+                    href="/legal/cookies"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Страница политики</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Тумблеры управления */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <span className="text-xs font-bold text-white block">Отображать Cookie-баннер</span>
+                    <span className="text-[11px] text-slate-400 block">Показ плашки при первом посещении</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={siteSettings.cookieBanner?.enabled ?? true}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        cookieBanner: {
+                          ...(prev.cookieBanner || DEFAULT_SITE_SETTINGS.cookieBanner),
+                          enabled: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="w-5 h-5 rounded text-blue-600 bg-slate-900 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <span className="text-xs font-bold text-white block">Блокировать скрипты до согласия</span>
+                    <span className="text-[11px] text-slate-400 block">Строгий режим 152-ФЗ (Prior Consent)</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={siteSettings.cookieBanner?.autoBlockScripts ?? true}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        cookieBanner: {
+                          ...(prev.cookieBanner || DEFAULT_SITE_SETTINGS.cookieBanner),
+                          autoBlockScripts: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="w-5 h-5 rounded text-blue-600 bg-slate-900 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <span className="text-xs font-bold text-white block">Кнопка «Только необходимые»</span>
+                    <span className="text-[11px] text-slate-400 block">Быстрый отказ от аналитики в баннере</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={siteSettings.cookieBanner?.showRejectAll ?? siteSettings.cookieBanner?.showDeclineButton ?? true}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        cookieBanner: {
+                          ...(prev.cookieBanner || DEFAULT_SITE_SETTINGS.cookieBanner),
+                          showRejectAll: e.target.checked,
+                          showDeclineButton: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="w-5 h-5 rounded text-blue-600 bg-slate-900 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Тексты баннера */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Заголовок баннера
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.cookieBanner?.title || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          cookieBanner: {
+                            ...(prev.cookieBanner || DEFAULT_SITE_SETTINGS.cookieBanner),
+                            title: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Файлы cookie и конфиденциальность"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Срок действия согласия (дней)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={730}
+                      value={siteSettings.cookieBanner?.consentExpiryDays ?? siteSettings.cookieBanner?.cookieExpirationDays ?? 365}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          cookieBanner: {
+                            ...(prev.cookieBanner || DEFAULT_SITE_SETTINGS.cookieBanner),
+                            consentExpiryDays: Number(e.target.value) || 365,
+                            cookieExpirationDays: Number(e.target.value) || 365,
+                          },
+                        }))
+                      }
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Основной текст уведомления
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={siteSettings.cookieBanner?.description || ''}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        cookieBanner: {
+                          ...(prev.cookieBanner || DEFAULT_SITE_SETTINGS.cookieBanner),
+                          description: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Мы используем файлы cookie и схожие технологии..."
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Текст ссылки на Политику файлов cookie
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.cookieBanner?.policyLinkText || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          cookieBanner: {
+                            ...(prev.cookieBanner || DEFAULT_SITE_SETTINGS.cookieBanner),
+                            policyLinkText: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Политикой использования файлов cookie"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      URL страницы политики
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.cookieBanner?.policyUrl || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          cookieBanner: {
+                            ...(prev.cookieBanner || DEFAULT_SITE_SETTINGS.cookieBanner),
+                            policyUrl: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="/legal/cookies"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ЖУРНАЛ АУДИТА СОГЛАСИЙ (152-ФЗ) */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Журнал фиксации согласий (Audit Trail 152-ФЗ)</h4>
+                    <p className="text-[11px] text-slate-400">
+                      Анонимизированная фиксация волеизъявления пользователей для проверок регулятора
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={fetchCookieConsents}
+                  disabled={isLoadingCookieData}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCookieData ? 'animate-spin text-blue-400' : ''}`} />
+                  <span>Обновить журнал</span>
+                </button>
+              </div>
+
+              {cookieLogs.length === 0 ? (
+                <div className="p-8 rounded-xl bg-slate-950/60 border border-slate-800/80 text-center text-slate-400 text-xs">
+                  Журнал согласий пока пуст. При первом посещении сайта посетители получат баннер, и их решения появятся здесь.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase tracking-wider">
+                        <th className="pb-2.5 font-semibold">Дата и время</th>
+                        <th className="pb-2.5 font-semibold">Решение</th>
+                        <th className="pb-2.5 font-semibold">Категории</th>
+                        <th className="pb-2.5 font-semibold">Анонимный IP</th>
+                        <th className="pb-2.5 font-semibold">Браузер / Устройство</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {cookieLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="py-2.5 font-mono text-slate-300 text-[11px]">
+                            {log.timestamp ? new Date(log.timestamp).toLocaleString('ru-RU') : '—'}
+                          </td>
+                          <td className="py-2.5">
+                            {(log.choice === 'all' || log.action === 'accept_all') && (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                                Все файлы
+                              </span>
+                            )}
+                            {(log.choice === 'necessary' || log.action === 'reject_all') && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold">
+                                Только технические
+                              </span>
+                            )}
+                            {(log.choice === 'custom' || log.action === 'custom') && (
+                              <span className="px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-bold">
+                                Выборочно
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5">
+                            <div className="flex items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">
+                                Необх. ✓
+                              </span>
+                              {log.preferences.analytics ? (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px]">
+                                  Аналитика ✓
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 text-[10px]">
+                                  Аналитика ✕
+                                </span>
+                              )}
+                              {log.preferences.marketing ? (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px]">
+                                  Маркетинг ✓
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 text-[10px]">
+                                  Маркетинг ✕
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 font-mono text-slate-400 text-[11px]">
+                            {log.ipMasked || '127.0.0.xxx'}
+                          </td>
+                          <td className="py-2.5 text-slate-400 text-[11px] max-w-xs truncate" title={log.userAgent}>
+                            {log.userAgent || 'Web Browser'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Фиксированная кнопка сохранения */}
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Настройки 152-ФЗ вступают в силу немедленно на всем сайте</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveSettings}
+                disabled={isSavingSettings}
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 cursor-pointer transition-all"
+              >
+                {isSavingSettings ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Сохранение настроек...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Сохранить параметры 152-ФЗ и Cookie</span>
                   </>
                 )}
               </button>

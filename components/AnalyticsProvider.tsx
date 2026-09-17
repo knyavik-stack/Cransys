@@ -3,12 +3,16 @@
 import React, { useEffect, useState } from 'react';
 import Script from 'next/script';
 import { SiteSettings } from '@/lib/settings/types';
+import { useCookieConsent } from '@/lib/consent-client';
 
 export function AnalyticsProvider() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const consent = useCookieConsent();
 
   useEffect(() => {
     let isMounted = true;
+
+    // 1. Загрузка настроек сайта
     async function loadSettings() {
       try {
         const res = await fetch('/api/settings');
@@ -22,7 +26,9 @@ export function AnalyticsProvider() {
         console.warn('AnalyticsProvider: error loading site settings', err);
       }
     }
+
     loadSettings();
+
     return () => {
       isMounted = false;
     };
@@ -30,7 +36,7 @@ export function AnalyticsProvider() {
 
   if (!settings) return null;
 
-  const { analytics, webmasters, customScripts } = settings;
+  const { analytics, webmasters, customScripts, cookieBanner } = settings;
   const ymId = analytics?.yandexMetrikaId?.trim();
   const gaId = analytics?.googleAnalyticsId?.trim();
   const yandexVerif = webmasters?.yandexVerificationCode?.trim();
@@ -38,9 +44,22 @@ export function AnalyticsProvider() {
   const headScript = customScripts?.headScript?.trim();
   const bodyScript = customScripts?.bodyScript?.trim();
 
+  // Логика 152-ФЗ РФ: проверяем, разрешена ли аналитика и маркетинг
+  // Если включен autoBlockScripts и согласия еще нет — блокируем до клика в баннере
+  const isAutoBlock = cookieBanner?.autoBlockScripts ?? true;
+  const isBannerEnabled = cookieBanner?.enabled ?? true;
+
+  const canRunAnalytics = isBannerEnabled
+    ? consent ? consent.analytics : !isAutoBlock
+    : true;
+
+  const canRunMarketing = isBannerEnabled
+    ? consent ? consent.marketing : !isAutoBlock
+    : true;
+
   return (
     <>
-      {/* 1. Метатеги верификации поисковых систем */}
+      {/* 1. Метатеги верификации поисковых систем (всегда разрешены для роботов) */}
       {yandexVerif && (
         <meta name="yandex-verification" content={yandexVerif} />
       )}
@@ -48,8 +67,8 @@ export function AnalyticsProvider() {
         <meta name="google-site-verification" content={googleVerif} />
       )}
 
-      {/* 2. Яндекс.Метрика */}
-      {ymId && (
+      {/* 2. Яндекс.Метрика (срабатывает только при согласии на аналитические cookie) */}
+      {ymId && canRunAnalytics && (
         <>
           <Script
             id="yandex-metrika-script"
@@ -85,7 +104,7 @@ export function AnalyticsProvider() {
       )}
 
       {/* 3. Google Analytics 4 (gtag.js) */}
-      {gaId && (
+      {gaId && canRunAnalytics && (
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
@@ -108,8 +127,8 @@ export function AnalyticsProvider() {
         </>
       )}
 
-      {/* 4. Пользовательский Head Script */}
-      {headScript && (
+      {/* 4. Пользовательский Head Script (маркетинговые пиксели) */}
+      {headScript && canRunMarketing && (
         <Script
           id="custom-head-script"
           strategy="afterInteractive"
@@ -117,8 +136,8 @@ export function AnalyticsProvider() {
         />
       )}
 
-      {/* 5. Пользовательский Body Script */}
-      {bodyScript && (
+      {/* 5. Пользовательский Body Script (виджеты) */}
+      {bodyScript && canRunMarketing && (
         <Script
           id="custom-body-script"
           strategy="lazyOnload"

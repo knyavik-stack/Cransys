@@ -13,7 +13,9 @@ import {
   Video, 
   MessageSquare, 
   Globe, 
-  ExternalLink 
+  ExternalLink,
+  Cookie,
+  Settings
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { DEFAULT_SITE_SETTINGS, SocialLinkItem } from '@/lib/settings/types';
@@ -45,6 +47,12 @@ export function Footer() {
     };
   }, []);
 
+  const handleOpenCookieSettings = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('open-cookie-settings'));
+    }
+  };
+
   const enabledSocials = socials.filter((s) => s.enabled && s.url.trim() !== '');
 
   const renderSocialIcon = (iconType: string) => {
@@ -68,11 +76,11 @@ export function Footer() {
 
   return (
     <footer className="w-full bg-white text-slate-600 border-t border-slate-200/80 py-10 text-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 mb-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-8 mb-8">
           
-          {/* Колонка 1: Бренд и миссия */}
-          <div className="space-y-3">
+          {/* Колонка 1: Бренд и миссия (5 из 12 колонок) */}
+          <div className="lg:col-span-5 space-y-3 pr-0 lg:pr-4">
             <div className="flex items-center gap-2.5">
               <Logo size={32} className="shrink-0" />
               <div className="flex items-center gap-1.5">
@@ -82,7 +90,7 @@ export function Footer() {
                 </span>
               </div>
             </div>
-            <p className="text-slate-500 text-xs leading-relaxed">
+            <p className="text-slate-500 text-xs leading-relaxed max-w-sm">
               Независимый автоматизированный аудит рекламных кампаний в Яндекс.Директ. Поиск скрытых сливов бюджета в РСЯ, нецелевых запросов и мобильных аномалий.
             </p>
             <div className="flex flex-col gap-1.5 text-[11px] text-slate-500 pt-1">
@@ -101,15 +109,15 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Колонка 2: Навигация */}
-          <div>
+          {/* Колонка 2: Навигация (2 из 12 колонок) */}
+          <div className="lg:col-span-2">
             <h4 className="font-bold text-slate-900 mb-3 text-xs tracking-wider uppercase">
               Навигация
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
                 <Link href="/" className="hover:text-blue-600 transition-colors">
-                  Главная и ДЕМО-аудит
+                  Главная и ДЕМО
                 </Link>
               </li>
               <li>
@@ -129,16 +137,16 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/admin" className="text-slate-400 hover:text-slate-700 transition-colors">
-                  Панель администратора
+                  Панель Admin
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Колонка 3: Мы в сообществах и медиа (ОТДЕЛЬНЫЙ СТОЛБЕЦ) */}
-          <div>
+          {/* Колонка 3: Мы в сообществах и медиа (2 из 12 колонок) */}
+          <div className="lg:col-span-2">
             <h4 className="font-bold text-slate-900 mb-3 text-xs tracking-wider uppercase">
-              Сообщества и медиа
+              Сообщества
             </h4>
             {enabledSocials.length > 0 ? (
               <ul className="space-y-2 text-xs">
@@ -162,12 +170,12 @@ export function Footer() {
             )}
           </div>
 
-          {/* Колонка 4: Правовая информация и поддержка */}
-          <div>
+          {/* Колонка 4: Правовая информация, cookie и поддержка (3 из 12 колонок) */}
+          <div className="lg:col-span-3">
             <h4 className="font-bold text-slate-900 mb-3 text-xs tracking-wider uppercase">
               Правовая информация
             </h4>
-            <ul className="space-y-2 text-xs mb-4">
+            <ul className="space-y-2 text-xs mb-3">
               <li>
                 <Link
                   href="/legal/privacy"
@@ -195,10 +203,29 @@ export function Footer() {
                   <span>Согласие на обработку (152-ФЗ)</span>
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/legal/cookies"
+                  className="hover:text-blue-600 transition-colors flex items-center gap-1.5 text-slate-600"
+                >
+                  <Cookie className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>Политика файлов cookie</span>
+                </Link>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={handleOpenCookieSettings}
+                  className="hover:text-blue-600 text-slate-500 transition-colors flex items-center gap-1.5 text-xs text-left cursor-pointer pt-0.5"
+                >
+                  <Settings className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="underline decoration-slate-300 underline-offset-2">Настройки cookie</span>
+                </button>
+              </li>
             </ul>
 
-            <div className="pt-3 border-t border-slate-100">
-              <span className="text-[11px] text-slate-400 block mb-1">Служба поддержки:</span>
+            <div className="pt-2.5 border-t border-slate-100">
+              <span className="text-[11px] text-slate-400 block mb-0.5">Служба поддержки:</span>
               <a
                 href={`mailto:${supportEmail}`}
                 className="text-slate-700 font-semibold hover:text-blue-600 transition-colors inline-flex items-center gap-1.5 font-mono text-xs"
