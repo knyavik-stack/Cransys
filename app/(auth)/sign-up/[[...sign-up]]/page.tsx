@@ -19,6 +19,7 @@ import {
 import { useUser } from '@/lib/auth/user-context';
 import { checkPasswordSecurity } from '@/lib/auth/password-validator';
 import { Footer } from '@/components/Footer';
+import { Logo } from '@/components/Logo';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -165,10 +166,10 @@ export default function SignUpPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
           <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-blue-600 text-white font-bold text-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
-            C
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900">
+            <div className="flex justify-center mx-auto mb-3">
+              <Logo size={48} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">
             {step === 'REGISTER' ? 'Регистрация в Cransys' : 'Подтверждение Email'}
           </h2>
           <p className="text-xs text-slate-500 mt-1">

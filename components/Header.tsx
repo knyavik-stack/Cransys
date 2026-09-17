@@ -6,6 +6,7 @@ import { ShieldCheck, Activity, History, LogIn, LogOut, Sparkles, CreditCard, Sh
 import { useUser } from '@/lib/auth/user-context';
 import { PricingModal } from '@/components/PricingModal';
 import { getTierConfig } from '@/lib/billing/tiers';
+import { Logo } from '@/components/Logo';
 
 export function Header() {
   const { user, logout } = useUser();
@@ -18,9 +19,7 @@ export function Header() {
       <header className="w-full bg-white/95 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-xs shadow-blue-500/20">
-              C
-            </div>
+            <Logo size={36} className="shrink-0" />
             <div>
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Cransys</span>

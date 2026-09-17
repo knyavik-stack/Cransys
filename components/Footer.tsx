@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Shield, Lock, CheckCircle2, Mail, FileText, Scale } from 'lucide-react';
+import { Logo } from '@/components/Logo';
 
 export function Footer() {
   return (
@@ -12,9 +13,7 @@ export function Footer() {
           {/* Колонка 1: Бренд и миссия */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
-                C
-              </div>
+              <Logo size={28} className="shrink-0" />
               <span className="font-bold text-base text-slate-900 tracking-tight">Cransys</span>
               <span className="text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded">
                 Direct 2026
