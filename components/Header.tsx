@@ -22,9 +22,9 @@ export function Header() {
             <Logo size={36} className="shrink-0" />
             <div>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Cransys</span>
-                <span className="text-[10px] sm:text-[11px] font-semibold uppercase px-1.5 sm:px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-                  Direct
+                <span className="font-extrabold text-lg sm:text-xl text-[#003882] tracking-[0.14em] uppercase">CRANSYS</span>
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase px-1.5 sm:px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
+                  DIRECT
                 </span>
               </div>
             </div>

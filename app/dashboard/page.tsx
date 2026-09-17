@@ -34,6 +34,7 @@ import { WhiteLabelSettingsModal } from '@/components/WhiteLabelSettingsModal';
 import { Footer } from '@/components/Footer';
 import { DirectConnectCard } from '@/components/DirectConnectCard';
 import { UserTier, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
+import { Logo } from '@/components/Logo';
 
 interface AuditHistoryItem {
   id: string;
@@ -151,13 +152,11 @@ export default function DashboardPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                C
-              </div>
-              <span className="font-extrabold text-slate-900 tracking-tight text-lg">Cransys</span>
+            <Link href="/" className="flex items-center gap-2.5">
+              <Logo size={32} className="shrink-0" />
+              <span className="font-extrabold text-[#003882] tracking-[0.14em] uppercase text-lg">CRANSYS</span>
             </Link>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-100">
+            <span className="text-xs px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-100">
               Личный кабинет
             </span>
           </div>

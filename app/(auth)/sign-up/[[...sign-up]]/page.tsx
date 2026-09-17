@@ -169,10 +169,15 @@ export default function SignUpPage() {
             <div className="flex justify-center mx-auto mb-3">
               <Logo size={48} />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900">
-            {step === 'REGISTER' ? 'Регистрация в Cransys' : 'Подтверждение Email'}
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <h2 className="text-2xl font-bold text-slate-900">
+                {step === 'REGISTER' ? 'Регистрация в' : 'Подтверждение Email'}
+              </h2>
+              {step === 'REGISTER' && (
+                <span className="font-extrabold text-2xl text-[#003882] tracking-[0.14em] uppercase">CRANSYS</span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
             {step === 'REGISTER'
               ? 'Создайте защищенный аккаунт для доступа к отчетам и истории'
               : `Введите 6-значный код безопасности, отправленный на ${email}`}

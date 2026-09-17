@@ -86,7 +86,10 @@ export default function SignInPage() {
             <div className="flex justify-center mx-auto mb-3">
               <Logo size={48} />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900">Вход в Cransys</h2>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <h2 className="text-2xl font-bold text-slate-900">Вход в</h2>
+              <span className="font-extrabold text-2xl text-[#003882] tracking-[0.14em] uppercase">CRANSYS</span>
+            </div>
             <p className="text-xs text-slate-500 mt-1">
               Для доступа к истории проверок и функциям тарифа
             </p>

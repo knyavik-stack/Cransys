@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/Logo';
 import {
   Shield,
   Users,
@@ -633,12 +634,10 @@ export default function AdminPage() {
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-blue-600/30">
-              C
-            </div>
+            <Logo size={36} className="shrink-0" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-white text-base tracking-tight">Cransys Admin</span>
+                <span className="font-extrabold text-white text-base tracking-[0.14em] uppercase">CRANSYS ADMIN</span>
                 <span className="px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/30 text-[10px] font-mono font-bold text-blue-300">
                   ROOT v4.2
                 </span>
