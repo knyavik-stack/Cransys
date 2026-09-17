@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
         const directJson = await directRes.json();
         if (directJson.error) {
           apiError = directJson.error.error_detail || directJson.error.error_string;
+          console.warn('[YANDEX DIRECT] API returned error:', directJson.error);
         } else if (Array.isArray(directJson?.result?.Campaigns)) {
           isLiveApi = true;
           campaigns = directJson.result.Campaigns.map((c: any) => ({
@@ -110,41 +111,58 @@ export async function GET(req: NextRequest) {
       apiError = fetchErr?.message || 'Сетевая ошибка API Яндекс.Директ';
     }
 
-    // Если в аккаунте пока нет кампаний (новый тестовый аккаунт или ошибка тестового доступа)
-    // Предоставляем демонстрационные реальные кампании для мгновенной оценки
-    const hasLiveCampaigns = campaigns.length > 0;
-    if (!hasLiveCampaigns) {
-      const demoCampaigns: DirectCampaignItem[] = mockMeblironData.campaigns.map((c) => ({
-        id: c.id,
-        name: c.name,
-        state: 'ON',
-        status: 'ACCEPTED',
-        type: 'TEXT_CAMPAIGN',
-        typeLabel: 'Текстово-графическая (Поиск/РСЯ)',
-        startDate: '2026-01-15',
-        clicks: c.clicks,
-        impressions: c.impressions,
-        isDemo: true,
-      }));
+    // Если API запрос прошел успешно, возвращаем реальные кампании пользователя!
+    // Кампании показываются со всеми статусами: активные, остановленные, черновики, архивные.
+    if (isLiveApi) {
+      if (campaigns.length === 0) {
+        return NextResponse.json({
+          success: true,
+          isLiveApi: true,
+          hasLiveCampaigns: false,
+          accountLogin: clientLogin,
+          apiError: null,
+          campaigns: [],
+          notice: 'В выбранном кабинете Яндекс.Директ пока не создано ни одной рекламной кампании.',
+          totalCampaigns: 0,
+        });
+      }
 
       return NextResponse.json({
         success: true,
-        isLiveApi,
-        hasLiveCampaigns: false,
+        isLiveApi: true,
+        hasLiveCampaigns: true,
         accountLogin: clientLogin,
-        apiError,
-        campaigns: demoCampaigns,
-        notice: 'В подключенном аккаунте пока нет активных кампаний Яндекс.Директ. Для проверки работы алгоритмов подготовлены тестовые кампании с реальной статистикой.',
+        apiError: null,
+        campaigns,
+        totalCampaigns: campaigns.length,
       });
     }
 
+    // Только если реальный вызов API упал с ошибкой (например, лимиты, не настроен доступ):
+    const demoCampaigns: DirectCampaignItem[] = mockMeblironData.campaigns.map((c) => ({
+      id: c.id,
+      name: c.name,
+      state: 'ON',
+      status: 'ACCEPTED',
+      type: 'TEXT_CAMPAIGN',
+      typeLabel: 'Текстово-графическая (Поиск/РСЯ)',
+      startDate: '2026-01-15',
+      clicks: c.clicks,
+      impressions: c.impressions,
+      isDemo: true,
+    }));
+
     return NextResponse.json({
       success: true,
-      isLiveApi: true,
-      hasLiveCampaigns: true,
+      isLiveApi: false,
+      hasLiveCampaigns: false,
       accountLogin: clientLogin,
-      campaigns,
-      totalCampaigns: campaigns.length,
+      apiError,
+      campaigns: demoCampaigns,
+      notice: apiError 
+        ? `Ошибка прямого подключения к API (${apiError}). Загружены демонстрационные кампании для тестирования аудита.`
+        : 'Загружены демонстрационные кампании для проверки интерфейса аудита.',
+      totalCampaigns: demoCampaigns.length,
     });
   } catch (error) {
     console.error('[YANDEX DIRECT] Error listing campaigns:', error);

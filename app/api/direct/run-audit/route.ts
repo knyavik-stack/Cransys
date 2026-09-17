@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
 
     const requestedCampaignIds: string[] = Array.isArray(body?.campaignIds) ? body.campaignIds : [];
     const targetAccountLogin: string = body?.accountLogin || '';
+    const periodDays: number = typeof body?.periodDays === 'number' && body.periodDays > 0 ? body.periodDays : 90;
 
     const connection = await getDirectConnectionByUserId(userId);
 
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
         totalConversions: 0,
         currency: 'RUB',
         period: {
-          from: new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString().split('T')[0],
+          from: new Date(Date.now() - periodDays * 24 * 3600 * 1000).toISOString().split('T')[0],
           to: new Date().toISOString().split('T')[0],
         },
         campaigns: filtered.map((c: any, index: number) => {

@@ -140,42 +140,60 @@ export async function getDirectConnectionByUserId(userId: string): Promise<Yande
         return rows[0] as YandexDirectConnection;
       }
 
-      // 2. Fallback: поиск по current_user или последнему активному подключению
-      const fallbackRows = await sql`
-        SELECT 
-          id,
-          user_id as "userId",
-          user_email as "userEmail",
-          access_token as "accessToken",
-          refresh_token as "refreshToken",
-          expires_in as "expiresIn",
-          login,
-          connected_at as "connectedAt",
-          last_sync_at as "lastSyncAt",
-          status
-        FROM public.yandex_connections
-        WHERE (user_id = 'current_user' OR user_id LIKE 'usr_%') AND status = 'ACTIVE'
-        ORDER BY connected_at DESC
+      // 2. Если конкретный пользователь еще не искался как current_user или сессия usr_*
+      // Проверяем: если для данного userId явно есть статус REVOKED, НЕ возвращаем чужие активные токены!
+      const revokedRows = await sql`
+        SELECT id FROM public.yandex_connections
+        WHERE user_id = ${userId} AND status = 'REVOKED'
         LIMIT 1;
       `;
+      if (revokedRows && revokedRows.length > 0) {
+        return null;
+      }
 
-      if (fallbackRows && fallbackRows.length > 0) {
-        return fallbackRows[0] as YandexDirectConnection;
+      // 3. Fallback только для демонстрации при первом входе, если нет отключений
+      if (userId === 'current_user') {
+        const fallbackRows = await sql`
+          SELECT 
+            id,
+            user_id as "userId",
+            user_email as "userEmail",
+            access_token as "accessToken",
+            refresh_token as "refreshToken",
+            expires_in as "expiresIn",
+            login,
+            connected_at as "connectedAt",
+            last_sync_at as "lastSyncAt",
+            status
+          FROM public.yandex_connections
+          WHERE status = 'ACTIVE'
+          ORDER BY connected_at DESC
+          LIMIT 1;
+        `;
+
+        if (fallbackRows && fallbackRows.length > 0) {
+          return fallbackRows[0] as YandexDirectConnection;
+        }
       }
     } catch (e) {
       console.warn('Error querying Yandex connection from Neon DB:', e);
     }
   }
 
-  const exact = memoryConnections.find((c) => c.userId === userId && c.status === 'ACTIVE');
-  if (exact) return exact;
+  const exact = memoryConnections.find((c) => c.userId === userId);
+  if (exact) {
+    return exact.status === 'ACTIVE' ? exact : null;
+  }
 
-  // Fallback в памяти: последнее активное подключение
-  const fallback = memoryConnections
-    .filter((c) => c.status === 'ACTIVE')
-    .sort((a, b) => new Date(b.connectedAt).getTime() - new Date(a.connectedAt).getTime())[0];
+  // Fallback в памяти только для 'current_user' если нет отозванных
+  if (userId === 'current_user') {
+    const fallback = memoryConnections
+      .filter((c) => c.status === 'ACTIVE')
+      .sort((a, b) => new Date(b.connectedAt).getTime() - new Date(a.connectedAt).getTime())[0];
+    return fallback || null;
+  }
 
-  return fallback || null;
+  return null;
 }
 
 export async function disconnectDirect(userId: string): Promise<boolean> {
@@ -183,18 +201,28 @@ export async function disconnectDirect(userId: string): Promise<boolean> {
   if (sql) {
     try {
       await ensureDatabaseReady();
-      await sql`
-        UPDATE public.yandex_connections
-        SET status = 'REVOKED'
-        WHERE user_id = ${userId};
-      `;
+      if (userId === 'current_user') {
+        await sql`
+          UPDATE public.yandex_connections
+          SET status = 'REVOKED'
+          WHERE status = 'ACTIVE';
+        `;
+      } else {
+        await sql`
+          UPDATE public.yandex_connections
+          SET status = 'REVOKED'
+          WHERE user_id = ${userId} OR user_id = 'current_user';
+        `;
+      }
     } catch (e) {
       console.warn('Error revoking Yandex connection in DB:', e);
     }
   }
 
   memoryConnections = memoryConnections.map((c) =>
-    c.userId === userId ? { ...c, status: 'REVOKED' as const } : c
+    c.userId === userId || userId === 'current_user' || c.userId === 'current_user'
+      ? { ...c, status: 'REVOKED' as const }
+      : c
   );
   saveLocalConnections(memoryConnections);
   return true;
