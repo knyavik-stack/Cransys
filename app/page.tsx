@@ -124,7 +124,7 @@ export default function HomePage() {
             <div className="max-w-4xl mx-auto text-center mb-8">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-4">
                 <Zap className="w-3.5 h-3.5" />
-                <span>Независимый аудит Яндекс Директ Analytics</span>
+                <span>Независимый аудит Яндекс Директ Cransys Analytics</span>
               </div>
 
               <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight sm:leading-tight mb-4">
