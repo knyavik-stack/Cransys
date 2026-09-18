@@ -15,5 +15,5 @@
   </g>
 
   <!-- Red Vector Arrow (Смещена и увеличена под масштаб) -->
-  <polygon points="425,170 453,220 375,198" fill="#DC2626" />
+  <polygon points="420,170 450,220 325,235" fill="#DC2626" />
 </svg>
