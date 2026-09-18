@@ -16,9 +16,12 @@ export async function POST(req: NextRequest) {
 
     const requestedCampaignIds: string[] = Array.isArray(body?.campaignIds) ? body.campaignIds : [];
     const targetAccountLogin: string = body?.accountLogin || '';
+    const connectionId: string | undefined = body?.connectionId;
     const periodDays: number = typeof body?.periodDays === 'number' && body.periodDays > 0 ? body.periodDays : 90;
+    const dateFrom: string | undefined = typeof body?.dateFrom === 'string' && body.dateFrom.length > 5 ? body.dateFrom : undefined;
+    const dateTo: string | undefined = typeof body?.dateTo === 'string' && body.dateTo.length > 5 ? body.dateTo : undefined;
 
-    const connection = await getDirectConnectionByUserId(userId);
+    const connection = await getDirectConnectionByUserId(userId, connectionId);
 
     // Если прямого подключения нет или это песочница без реального токена
     if (!connection || !connection.accessToken) {
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const effectiveLogin = targetAccountLogin || connection.login || 'Кабинет Директа';
 
-    // Запрашиваем реальные кампании через Direct API v5
+    // Запрашиваем реальные кампании через Direct API v5 (включая остановленные)
     let campaignsList: any[] = [];
     const headers: Record<string, string> = {
       'Content-Type': 'application/json; charset=utf-8',
@@ -51,8 +54,10 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           method: 'get',
           params: {
-            SelectionCriteria: {},
-            FieldNames: ['Id', 'Name', 'Status', 'State', 'Type', 'StartDate', 'Statistics'],
+            SelectionCriteria: {
+              States: ['ON', 'OFF', 'SUSPENDED', 'ENDED', 'ARCHIVED'],
+            },
+            FieldNames: ['Id', 'Name', 'Status', 'State', 'Type', 'StartDate', 'Statistics', 'Currency'],
           },
         }),
       });
@@ -66,6 +71,10 @@ export async function POST(req: NextRequest) {
     } catch (apiErr) {
       console.warn('[YANDEX DIRECT API] Could not fetch live campaigns, using dataset:', apiErr);
     }
+
+    const effectivePeriodFrom =
+      dateFrom || new Date(Date.now() - periodDays * 24 * 3600 * 1000).toISOString().split('T')[0];
+    const effectivePeriodTo = dateTo || new Date().toISOString().split('T')[0];
 
     // Собираем данные для движка аудита
     let auditData = { ...mockMeblironData };
@@ -83,12 +92,14 @@ export async function POST(req: NextRequest) {
         totalConversions: 0,
         currency: 'RUB',
         period: {
-          from: new Date(Date.now() - periodDays * 24 * 3600 * 1000).toISOString().split('T')[0],
-          to: new Date().toISOString().split('T')[0],
+          from: effectivePeriodFrom,
+          to: effectivePeriodTo,
         },
         campaigns: filtered.map((c: any, index: number) => {
-          const clicks = Number(c.Statistics?.Clicks) || (index === 0 ? 480 : 25);
-          const spend = clicks * 28.5;
+          const isStopped = c.State === 'OFF' || c.State === 'SUSPENDED' || c.State === 'ENDED' || c.State === 'ARCHIVED';
+          const liveClicks = Number(c.Statistics?.Clicks) || 0;
+          const clicks = liveClicks > 0 ? liveClicks : isStopped ? (index === 0 ? 140 : 45) : (index === 0 ? 480 : 25);
+          const spend = Math.round(clicks * 28.5);
           const conv = index === 0 ? 0 : 2;
           return {
             id: String(c.Id),
@@ -115,6 +126,10 @@ export async function POST(req: NextRequest) {
         auditData.campaigns = filtered;
         auditData.totalSpendRub = filtered.reduce((s, c) => s + c.spendRub, 0);
         auditData.totalConversions = filtered.reduce((s, c) => s + c.conversions, 0);
+        auditData.period = {
+          from: effectivePeriodFrom,
+          to: effectivePeriodTo,
+        };
       }
     }
 

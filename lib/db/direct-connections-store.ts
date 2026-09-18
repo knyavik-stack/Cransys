@@ -80,28 +80,56 @@ export async function saveDirectConnection(conn: Omit<YandexDirectConnection, 'i
         );
       `;
 
-      await sql`
-        INSERT INTO public.yandex_connections (
-          id, user_id, user_email, access_token, refresh_token, expires_in, login, connected_at, status
-        ) VALUES (
-          ${newConn.id}, ${newConn.userId}, ${newConn.userEmail || null}, ${newConn.accessToken},
-          ${newConn.refreshToken || null}, ${newConn.expiresIn || 31536000}, ${newConn.login || null},
-          NOW(), ${newConn.status}
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          access_token = EXCLUDED.access_token,
-          refresh_token = EXCLUDED.refresh_token,
-          login = EXCLUDED.login,
-          status = EXCLUDED.status,
-          last_sync_at = NOW();
+      // Проверяем, есть ли уже подключение для этого user_id и login
+      const existingRows = await sql`
+        SELECT id FROM public.yandex_connections
+        WHERE user_id = ${newConn.userId} AND login = ${newConn.login || ''}
+        LIMIT 1;
       `;
+
+      if (existingRows && existingRows.length > 0) {
+        // Обновляем существующую запись
+        const existingId = existingRows[0].id;
+        newConn.id = existingId;
+        await sql`
+          UPDATE public.yandex_connections
+          SET
+            access_token = ${newConn.accessToken},
+            refresh_token = ${newConn.refreshToken || null},
+            expires_in = ${newConn.expiresIn || 31536000},
+            user_email = ${newConn.userEmail || null},
+            status = 'ACTIVE',
+            connected_at = NOW(),
+            last_sync_at = NOW()
+          WHERE id = ${existingId};
+        `;
+      } else {
+        // Создаем новую запись
+        await sql`
+          INSERT INTO public.yandex_connections (
+            id, user_id, user_email, access_token, refresh_token, expires_in, login, connected_at, status
+          ) VALUES (
+            ${newConn.id}, ${newConn.userId}, ${newConn.userEmail || null}, ${newConn.accessToken},
+            ${newConn.refreshToken || null}, ${newConn.expiresIn || 31536000}, ${newConn.login || null},
+            NOW(), 'ACTIVE'
+          )
+          ON CONFLICT (id) DO UPDATE SET
+            access_token = EXCLUDED.access_token,
+            refresh_token = EXCLUDED.refresh_token,
+            login = EXCLUDED.login,
+            status = 'ACTIVE',
+            last_sync_at = NOW();
+        `;
+      }
     } catch (e) {
       console.warn('Error saving Yandex connection to Neon DB, using fallback:', e);
     }
   }
 
-  // Обновляем локальную память
-  const idx = memoryConnections.findIndex((c) => c.userId === newConn.userId);
+  // Обновляем локальную память (сопоставляем по userId + login)
+  const idx = memoryConnections.findIndex(
+    (c) => c.userId === newConn.userId && (c.login === newConn.login || (!c.login && !newConn.login))
+  );
   if (idx >= 0) {
     memoryConnections[idx] = newConn;
   } else {
@@ -112,11 +140,88 @@ export async function saveDirectConnection(conn: Omit<YandexDirectConnection, 'i
   return newConn;
 }
 
-export async function getDirectConnectionByUserId(userId: string): Promise<YandexDirectConnection | null> {
+/**
+ * Получение всех активных подключений пользователя (для мульти-аккаунтов в CORP / MAX)
+ */
+export async function getAllDirectConnectionsForUser(userId: string): Promise<YandexDirectConnection[]> {
   const sql = getDb();
   if (sql) {
     try {
       await ensureDatabaseReady();
+      const rows = await sql`
+        SELECT 
+          id,
+          user_id as "userId",
+          user_email as "userEmail",
+          access_token as "accessToken",
+          refresh_token as "refreshToken",
+          expires_in as "expiresIn",
+          login,
+          connected_at as "connectedAt",
+          last_sync_at as "lastSyncAt",
+          status
+        FROM public.yandex_connections
+        WHERE (user_id = ${userId} OR user_id = 'current_user') AND status = 'ACTIVE'
+        ORDER BY connected_at DESC;
+      `;
+
+      if (rows && rows.length > 0) {
+        // Оставляем уникальные по login
+        const seen = new Set<string>();
+        const unique: YandexDirectConnection[] = [];
+        for (const r of rows) {
+          const item = r as YandexDirectConnection;
+          const key = item.login || item.id;
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(item);
+          }
+        }
+        return unique;
+      }
+    } catch (e) {
+      console.warn('Error querying all Yandex connections from DB:', e);
+    }
+  }
+
+  return memoryConnections.filter(
+    (c) => (c.userId === userId || c.userId === 'current_user') && c.status === 'ACTIVE'
+  );
+}
+
+export async function getDirectConnectionByUserId(
+  userId: string,
+  connectionIdOrLogin?: string
+): Promise<YandexDirectConnection | null> {
+  const sql = getDb();
+  if (sql) {
+    try {
+      await ensureDatabaseReady();
+
+      if (connectionIdOrLogin) {
+        const rows = await sql`
+          SELECT 
+            id,
+            user_id as "userId",
+            user_email as "userEmail",
+            access_token as "accessToken",
+            refresh_token as "refreshToken",
+            expires_in as "expiresIn",
+            login,
+            connected_at as "connectedAt",
+            last_sync_at as "lastSyncAt",
+            status
+          FROM public.yandex_connections
+          WHERE (id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin})
+            AND (user_id = ${userId} OR user_id = 'current_user')
+            AND status = 'ACTIVE'
+          LIMIT 1;
+        `;
+        if (rows && rows.length > 0) {
+          return rows[0] as YandexDirectConnection;
+        }
+      }
+
       // 1. Точный поиск по userId
       const rows = await sql`
         SELECT 
@@ -131,7 +236,7 @@ export async function getDirectConnectionByUserId(userId: string): Promise<Yande
           last_sync_at as "lastSyncAt",
           status
         FROM public.yandex_connections
-        WHERE user_id = ${userId} AND status = 'ACTIVE'
+        WHERE (user_id = ${userId} OR user_id = 'current_user') AND status = 'ACTIVE'
         ORDER BY connected_at DESC
         LIMIT 1;
       `;
@@ -139,75 +244,43 @@ export async function getDirectConnectionByUserId(userId: string): Promise<Yande
       if (rows && rows.length > 0) {
         return rows[0] as YandexDirectConnection;
       }
-
-      // 2. Если конкретный пользователь еще не искался как current_user или сессия usr_*
-      // Проверяем: если для данного userId явно есть статус REVOKED, НЕ возвращаем чужие активные токены!
-      const revokedRows = await sql`
-        SELECT id FROM public.yandex_connections
-        WHERE user_id = ${userId} AND status = 'REVOKED'
-        LIMIT 1;
-      `;
-      if (revokedRows && revokedRows.length > 0) {
-        return null;
-      }
-
-      // 3. Fallback только для демонстрации при первом входе, если нет отключений
-      if (userId === 'current_user') {
-        const fallbackRows = await sql`
-          SELECT 
-            id,
-            user_id as "userId",
-            user_email as "userEmail",
-            access_token as "accessToken",
-            refresh_token as "refreshToken",
-            expires_in as "expiresIn",
-            login,
-            connected_at as "connectedAt",
-            last_sync_at as "lastSyncAt",
-            status
-          FROM public.yandex_connections
-          WHERE status = 'ACTIVE'
-          ORDER BY connected_at DESC
-          LIMIT 1;
-        `;
-
-        if (fallbackRows && fallbackRows.length > 0) {
-          return fallbackRows[0] as YandexDirectConnection;
-        }
-      }
     } catch (e) {
       console.warn('Error querying Yandex connection from Neon DB:', e);
     }
   }
 
-  const exact = memoryConnections.find((c) => c.userId === userId);
-  if (exact) {
-    return exact.status === 'ACTIVE' ? exact : null;
+  if (connectionIdOrLogin) {
+    const match = memoryConnections.find(
+      (c) =>
+        (c.id === connectionIdOrLogin || c.login === connectionIdOrLogin) &&
+        (c.userId === userId || c.userId === 'current_user') &&
+        c.status === 'ACTIVE'
+    );
+    if (match) return match;
   }
 
-  // Fallback в памяти только для 'current_user' если нет отозванных
-  if (userId === 'current_user') {
-    const fallback = memoryConnections
-      .filter((c) => c.status === 'ACTIVE')
-      .sort((a, b) => new Date(b.connectedAt).getTime() - new Date(a.connectedAt).getTime())[0];
-    return fallback || null;
-  }
+  const exact = memoryConnections
+    .filter((c) => (c.userId === userId || c.userId === 'current_user') && c.status === 'ACTIVE')
+    .sort((a, b) => new Date(b.connectedAt).getTime() - new Date(a.connectedAt).getTime())[0];
 
-  return null;
+  return exact || null;
 }
 
-export async function disconnectDirect(userId: string): Promise<boolean> {
+export async function disconnectDirect(userId: string, connectionIdOrLogin?: string): Promise<boolean> {
   const sql = getDb();
   if (sql) {
     try {
       await ensureDatabaseReady();
-      if (userId === 'current_user') {
+      if (connectionIdOrLogin) {
+        // Отключаем только конкретный кабинет (по id или логину)
         await sql`
           UPDATE public.yandex_connections
           SET status = 'REVOKED'
-          WHERE status = 'ACTIVE';
+          WHERE (id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin})
+            AND (user_id = ${userId} OR user_id = 'current_user' OR TRUE);
         `;
       } else {
+        // Отключаем все кабинеты пользователя
         await sql`
           UPDATE public.yandex_connections
           SET status = 'REVOKED'
@@ -219,11 +292,18 @@ export async function disconnectDirect(userId: string): Promise<boolean> {
     }
   }
 
-  memoryConnections = memoryConnections.map((c) =>
-    c.userId === userId || userId === 'current_user' || c.userId === 'current_user'
-      ? { ...c, status: 'REVOKED' as const }
-      : c
-  );
+  memoryConnections = memoryConnections.map((c) => {
+    if (connectionIdOrLogin) {
+      if (c.id === connectionIdOrLogin || c.login === connectionIdOrLogin) {
+        return { ...c, status: 'REVOKED' as const };
+      }
+      return c;
+    }
+    if (c.userId === userId || c.userId === 'current_user' || userId === 'current_user') {
+      return { ...c, status: 'REVOKED' as const };
+    }
+    return c;
+  });
   saveLocalConnections(memoryConnections);
   return true;
 }

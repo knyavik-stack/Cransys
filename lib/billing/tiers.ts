@@ -17,6 +17,8 @@ export interface TierDefinition {
   hasRsyaBlacklist: boolean;
   hasWhiteLabel: boolean;
   hasCorpAutomation: boolean;
+  maxConnectedAccounts: number;
+  hasMultiAccounts: boolean;
   features: string[];
   cta: string;
 }
@@ -38,6 +40,8 @@ export const TIER_CONFIGS: Record<UserTier, TierDefinition> = {
     hasRsyaBlacklist: false,
     hasWhiteLabel: false,
     hasCorpAutomation: false,
+    maxConnectedAccounts: 0,
+    hasMultiAccounts: false,
     features: [
       '1 полный аудит по файлу (.xlsx / .csv)',
       'Проверка по 6 базовым правилам сливов',
@@ -64,6 +68,8 @@ export const TIER_CONFIGS: Record<UserTier, TierDefinition> = {
     hasRsyaBlacklist: false,
     hasWhiteLabel: false,
     hasCorpAutomation: false,
+    maxConnectedAccounts: 0,
+    hasMultiAccounts: false,
     features: [
       '3 полных аудита в пакете (всего 330 ₽ за отчет)',
       'Сравнение показателей кампаний «До» и «После» правок',
@@ -91,9 +97,12 @@ export const TIER_CONFIGS: Record<UserTier, TierDefinition> = {
     hasRsyaBlacklist: false,
     hasWhiteLabel: false,
     hasCorpAutomation: false,
+    maxConnectedAccounts: 1,
+    hasMultiAccounts: false,
     features: [
       '10 полных проверок в месяц с автообновлением',
       'Прямое подключение по API Яндекс.Директ (OAuth)',
+      '1 активный рекламный кабинет Яндекс.Директ',
       'Глубокий AI-анализ аномалий на базе Gemini Pro',
       'Автоматическая кластеризация поисковых запросов',
       'Генератор готовых списков минус-слов в 1 клик',
@@ -119,9 +128,12 @@ export const TIER_CONFIGS: Record<UserTier, TierDefinition> = {
     hasRsyaBlacklist: true,
     hasWhiteLabel: true,
     hasCorpAutomation: false,
+    maxConnectedAccounts: 5,
+    hasMultiAccounts: true,
     features: [
       '30 проверок в месяц для клиентских проектов',
       'Все возможности тарифа PRO + прямое Direct API',
+      'Мульти-аккаунты: подключение до 5 кабинетов Яндекс',
       'Полный White-label: ваш логотип, контакты и сайт в отчете',
       'Генерация брендированных коммерческих предложений (КП)',
       'Эксклюзивный AI-блеклист 10 000+ мусорных площадок РСЯ',
@@ -148,8 +160,11 @@ export const TIER_CONFIGS: Record<UserTier, TierDefinition> = {
     hasRsyaBlacklist: true,
     hasWhiteLabel: true,
     hasCorpAutomation: true,
+    maxConnectedAccounts: 50,
+    hasMultiAccounts: true,
     features: [
       '500 аудитов в месяц (всего 60 ₽ за проверку)',
+      'Корпоративный мульти-аккаунт: подключение до 50 кабинетов',
       'Пакетный фоновый аудит 50+ аккаунтов через Direct API',
       'Круглосуточный 24/7 мониторинг сливов и аномалий',
       'Мгновенные алерты в Telegram при резком росте CPA',
