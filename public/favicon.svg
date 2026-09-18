@@ -1,18 +1,33 @@
 <svg xmlns="http://w3.org" viewBox="0 0 512 512" fill="none">
-  <!-- Группа монитора и пульса -->
-  <g fill="#005ad9">
-    <!-- Корпус монитора и подставка -->
-    <path d="M 400 130 L 112 130 C 90 130 72 148 72 170 L 72 320 C 72 342 90 360 112 360 L 220 360 C 220 380 200 400 170 405 L 170 425 L 300 425 L 300 405 C 270 400 250 380 250 360 L 265 360 C 255 340 250 318 250 295 C 250 220 305 158 377 147 L 390 147 C 395 147 400 152 400 157 L 400 230 C 420 232 438 240 454 250 L 454 170 C 454 148 436 130 400 130 Z M 396 250 L 396 172 C 396 168 392 164 388 164 L 124 164 C 120 164 116 168 116 172 L 116 318 C 116 322 120 326 124 326 L 244 326 C 245 298 255 272 272 250 L 396 250 Z" />
+  <!-- Monitor Framework -->
+  <g stroke="#005ad9" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Основной контур монитора (левая, верхняя и правая стороны) -->
+    <path d="M 120 330 L 120 150 L 400 150 L 400 240" />
+    <!-- Нижняя грань экрана, уходящая под круг -->
+    <line x1="120" y1="330" x2="220" y2="330" />
     
-    <!-- Линия кардиограммы (пульс) внутри экрана -->
-    <path d="M 140 245 L 185 245 L 205 200 L 225 290 L 255 160 L 280 270 L 295 230 L 320 245 L 350 245" stroke="#005ad9" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    <!-- Центральная ножка монитора -->
+    <line x1="256" y1="330" x2="256" y2="395" />
+    
+    <!-- Нижнее горизонтальное основание подставки -->
+    <line x1="170" y1="395" x2="310" y2="395" />
   </g>
 
-  <!-- Круглый значок с галочкой в правом нижнем углу -->
-  <g fill="#005ad9">
-    <!-- Синий круг-подложка -->
-    <circle cx="370" cy="360" r="85" />
-    <!-- Белая галочка (вырезана поверх круга) -->
-    <path d="M 325 360 L 355 390 L 415 325" stroke="#ffffff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <!-- Pulse Line Inside Screen -->
+  <g stroke="#005ad9" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Зубцы кардиограммы -->
+    <path d="M 150 240 L 185 240 L 210 200 L 235 290 L 260 160 L 285 270 L 300 225 L 320 240 L 350 240" />
+  </g>
+
+  <!-- Verification Badge -->
+  <g stroke="#005ad9" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Круг-значок, собранный из двух дуг по стандарту вашего шаблона -->
+    <path d="M 435 340 A 65 65 0 1 0 305 340 A 65 65 0 1 0 435 340" />
+  </g>
+
+  <!-- Red Vector Arrow -->
+  <g stroke="#005ad9" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Подтверждающая галочка внутри значка -->
+    <path d="M 340 340 L 360 360 L 400 310" />
   </g>
 </svg>
