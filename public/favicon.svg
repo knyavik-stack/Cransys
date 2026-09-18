@@ -1,28 +1,28 @@
 <svg xmlns="http://w3.org" viewBox="0 0 512 512" fill="none">
-  <!-- Medical Monitor Framework -->
-  <g stroke="#005ad9" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <!-- Внешний корпус монитора (разомкнут в правом нижнем углу под круг) -->
-    <path d="M 390 240 L 390 160 A 24 24 0 0 0 366 136 L 146 136 A 24 24 0 0 0 122 160 L 122 310 A 24 24 0 0 0 146 334 L 220 334" />
+  <!-- Корпус и подставка монитора -->
+  <g stroke="#005ad9" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Рамка экрана (оставляем разрыв внизу справа для значка) -->
+    <path d="M 400 240 L 400 150 L 112 150 L 112 330 L 220 330" />
     
-    <!-- Ножка монитора (плавный переход в подставку) -->
-    <path d="M 220 334 C 220 370 200 390 170 390 L 300 390 C 270 390 250 370 250 334" />
+    <!-- Ножка монитора (прямые линии) -->
+    <path d="M 230 330 L 230 380 M 282 330 L 282 380" />
+    
+    <!-- Нижнее горизонтальное основание подставки -->
+    <line x1="170" y1="395" x2="310" y2="395" />
   </g>
 
-  <!-- Pulse Line Inside Screen -->
+  <!-- Линия пульса (кардиограмма) -->
   <g stroke="#005ad9" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <!-- Линия кардиограммы -->
-    <path d="M 150 230 L 185 230 L 205 190 L 225 280 L 250 140 L 275 250 L 290 215 L 310 230 L 340 230" />
+    <path d="M 140 245 L 180 245 L 205 195 L 225 295 L 255 150 L 280 275 L 295 230 L 320 245 L 350 245" />
   </g>
 
-  <!-- Verification Badge -->
-  <g stroke="#005ad9" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <!-- Значок круга, собранный из двух идеальных дуг строго по вашему рабочему шаблону -->
-    <path d="M 435 340 A 65 65 0 1 0 305 340 A 65 65 0 1 0 435 340" />
+  <!-- Круглый значок (построен как восьмиугольник из прямых линий — без дуг) -->
+  <g stroke="#005ad9" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <polygon points="345,275 395,275 430,310 430,360 395,395 345,395 310,360 310,310" />
   </g>
 
-  <!-- Checkmark Inside Badge -->
+  <!-- Подтверждающая галочка внутри значка -->
   <g stroke="#005ad9" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <!-- Галочка внутри круга -->
-    <path d="M 340 340 L 360 360 L 400 310" />
+    <path d="M 340 335 L 365 360 L 400 310" />
   </g>
 </svg>
