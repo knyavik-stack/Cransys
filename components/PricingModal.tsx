@@ -70,7 +70,7 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
         <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-2">
             <Zap className="w-3.5 h-3.5 text-blue-600" />
-            <span>Официальная тарифная сетка Cransys 2026</span>
+            <span>Официальная тарифная сетка Cransys Analytics</span>
           </div>
           <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight">
             Тарифы для бизнеса, специалистов и агентств
@@ -115,14 +115,8 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
                 )}
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1">
                     <h4 className="font-bold text-slate-900 text-sm">{plan.name}</h4>
-                  </div>
-                  
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
-                      Лимит: {plan.reportsLimit} {plan.reportsLimit === 1 ? 'отчет' : plan.reportsLimit < 5 ? 'отчета' : 'отчетов'}
-                    </span>
                     {isCurrent && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
                         Текущий
@@ -130,9 +124,9 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
                     )}
                   </div>
 
-                  <p className="text-[11px] text-slate-500 mb-3 min-h-[32px] leading-snug">{plan.description}</p>
+                  <p className="text-[11px] text-slate-500 mb-2 leading-tight">{plan.description}</p>
 
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <span className="text-xl sm:text-2xl font-extrabold font-mono text-slate-900">
                       {plan.priceFormatted}
                     </span>

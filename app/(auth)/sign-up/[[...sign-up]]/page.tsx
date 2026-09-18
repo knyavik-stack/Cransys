@@ -23,7 +23,7 @@ import { Logo } from '@/components/Logo';
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { updateProfile } = useUser();
+  const { setUserProfile, updateProfile } = useUser();
 
   // Шаг 1: форма регистрации; Шаг 2: ввод кода подтверждения email
   const [step, setStep] = useState<'REGISTER' | 'VERIFY_EMAIL'>('REGISTER');
@@ -116,15 +116,14 @@ export default function SignUpPage() {
 
       setSuccessMsg('Email успешно подтвержден! Перенаправляем в личный кабинет...');
 
-      // Сохраняем пользователя в контекст
+      // Сохраняем пользователя в контекст и синхронизируем
       if (data.user) {
-        localStorage.setItem('cransys_current_user_v5', JSON.stringify(data.user));
-        updateProfile(data.user);
+        setUserProfile(data.user);
       }
 
       setTimeout(() => {
-        router.push('/dashboard');
-      }, 700);
+        window.location.href = '/dashboard';
+      }, 500);
     } catch (err) {
       setErrorMsg('Ошибка при проверке кода подтверждения');
       setIsVerifying(false);

@@ -1,6 +1,6 @@
 {
-  "name": "Cransys",
-  "description": "Автоматизированный независимый аудит рекламных кабинетов Яндекс.Директ для микробизнеса",
+  "name": "Cransys Analytics",
+  "description": "Независимый аудит рекламы Яндекс Директ, раскрутка и продвижение сайта, аудит контекстной рекламы и оптимизация бюджета",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -129,14 +129,14 @@ export function Header() {
               </div>
             )}
 
-            <a
+            <Link
               id="header-cta-button"
-              href="#audit-section"
+              href="/#audit-section"
               className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg shadow-xs transition-all shrink-0 cursor-pointer"
             >
               <Activity className="w-3.5 h-3.5" />
               <span>Аудит</span>
-            </a>
+            </Link>
           </div>
 
           {/* Мобильная панель быстрых действий (< 768px) */}
@@ -150,13 +150,13 @@ export function Header() {
               <span>Тарифы</span>
             </button>
 
-            <a
-              href="#audit-section"
+            <Link
+              href="/#audit-section"
               className="px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center gap-1 shadow-xs"
             >
               <Activity className="w-3.5 h-3.5" />
               <span>Аудит</span>
-            </a>
+            </Link>
 
             <button
               type="button"

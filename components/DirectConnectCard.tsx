@@ -148,17 +148,47 @@ export function DirectConnectCard({
   // Первичная загрузка
   useEffect(() => {
     let isMounted = true;
-    fetchStatus().then((connected) => {
-      if (connected && isMounted) {
-        fetchAccounts();
-        fetchCampaigns();
+
+    const loadInitialData = async () => {
+      try {
+        const headers: Record<string, string> = {};
+        if (user) {
+          headers['x-user-id'] = user.id;
+          headers['x-user-email'] = user.email;
+        }
+
+        const res = await fetch('/api/direct/status', { headers });
+        if (!isMounted) return;
+
+        if (res.ok) {
+          const data = await res.json();
+          const connected = Boolean(data.connected);
+          setIsConnected(connected);
+          if (data.login) {
+            setLogin(data.login);
+            setSelectedAccount(data.login);
+          }
+          if (connected) {
+            fetchAccounts();
+            fetchCampaigns(data.login);
+          }
+        }
+      } catch (e) {
+        console.warn('Error loading initial Direct status:', e);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       }
-    });
+    };
+
+    loadInitialData();
 
     return () => {
       isMounted = false;
     };
-  }, [fetchStatus, fetchAccounts, fetchCampaigns]);
+  }, [user, fetchAccounts, fetchCampaigns]);
 
   // Слушатель postMessage от всплывающего окна авторизации Яндекс OAuth
   useEffect(() => {

@@ -28,6 +28,7 @@ interface UserContextType {
   loginWithCredentials: (email: string, password?: string, name?: string) => Promise<{ success: boolean; error?: string }>;
   registerWithCredentials: (email: string, password?: string, name?: string) => Promise<{ success: boolean; error?: string }>;
   loginTestAccount: (tier?: UserTier) => void;
+  setUserProfile: (profile: UserProfile | null) => void;
   setTier: (tier: UserTier, makePaid?: boolean) => void;
   markPaid: (tier: UserTier) => void;
   updateProfile: (data: Partial<UserProfile>) => void;
@@ -47,6 +48,7 @@ const UserContext = createContext<UserContextType>({
   loginWithCredentials: async () => ({ success: true }),
   registerWithCredentials: async () => ({ success: true }),
   loginTestAccount: () => {},
+  setUserProfile: () => {},
   setTier: () => {},
   markPaid: () => {},
   updateProfile: () => {},
@@ -85,6 +87,42 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  // Синхронизация между вкладками и событиями приложения
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) {
+          setUser(null);
+        } else {
+          const parsed = JSON.parse(stored);
+          const config = getTierConfig(parsed.tier);
+          parsed.reportsLimit = config.reportsLimit;
+          setUser(parsed);
+        }
+      } catch {}
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('cransys_user_updated', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cransys_user_updated', handleStorageChange);
+    };
+  }, []);
+
+  const setUserProfile = (profile: UserProfile | null) => {
+    setUser(profile);
+    try {
+      if (profile) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      window.dispatchEvent(new Event('cransys_user_updated'));
+    } catch {}
+  };
+
   const login = (email: string, name?: string) => {
     const defaultTier: UserTier = 'EXPRESS_SINGLE';
     const config = getTierConfig(defaultTier);
@@ -99,10 +137,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       reportsLimit: config.reportsLimit,
       createdAt: new Date().toISOString(),
     };
-    setUser(newUser);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
-    } catch {}
+    setUserProfile(newUser);
   };
 
   const loginWithCredentials = async (
@@ -125,10 +160,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       const loggedUser: UserProfile = data.user;
-      setUser(loggedUser);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(loggedUser));
-      } catch {}
+      setUserProfile(loggedUser);
       setIsLoading(false);
       return { success: true };
     } catch (err) {
@@ -157,10 +189,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       const registeredUser: UserProfile = data.user;
-      setUser(registeredUser);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(registeredUser));
-      } catch {}
+      setUserProfile(registeredUser);
       setIsLoading(false);
       return { success: true };
     } catch (err) {
@@ -186,10 +215,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       customNotes: 'Аудит проведен ведущим контекстологом агентства. Обнаружен критический перекос в РСЯ.',
       createdAt: new Date().toISOString(),
     };
-    setUser(testUser);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(testUser));
-    } catch {}
+    setUserProfile(testUser);
   };
 
   const setTier = (tier: UserTier, makePaid?: boolean) => {
@@ -206,10 +232,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         reportsLimit: config.reportsLimit,
         createdAt: new Date().toISOString(),
       };
-      setUser(guestUser);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(guestUser));
-      } catch {}
+      setUserProfile(guestUser);
       return;
     }
 
@@ -220,10 +243,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       hasPaid: isTesterAccount ? true : (makePaid ?? user.hasPaid),
       reportsLimit: config.reportsLimit,
     };
-    setUser(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {}
+    setUserProfile(updated);
   };
 
   const markPaid = (tier: UserTier) => {
@@ -238,29 +258,25 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       hasPaid: true,
       reportsLimit: config.reportsLimit,
     };
-    setUser(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {}
+    setUserProfile(updated);
   };
 
   const updateProfile = (data: Partial<UserProfile>) => {
-    if (!user) return;
+    if (!user) {
+      if (data.email) {
+        setUserProfile(data as UserProfile);
+      }
+      return;
+    }
     const updated = { ...user, ...data };
-    setUser(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {}
+    setUserProfile(updated);
   };
 
   const incrementReportsUsed = (): boolean => {
     if (!user) return true;
     if (user.role === 'TESTER_ADMIN') {
       const updated = { ...user, reportsUsed: user.reportsUsed + 1 };
-      setUser(updated);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {}
+      setUserProfile(updated);
       return true;
     }
 
@@ -268,10 +284,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
     const updated = { ...user, reportsUsed: user.reportsUsed + 1 };
-    setUser(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {}
+    setUserProfile(updated);
     return true;
   };
 
@@ -291,10 +304,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    setUser(null);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {}
+    setUserProfile(null);
   };
 
   const isTester = user?.role === 'TESTER_ADMIN' || user?.email === 'test-owner@cransys-audit.ru';
@@ -311,6 +321,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         loginWithCredentials,
         registerWithCredentials,
         loginTestAccount,
+        setUserProfile,
         setTier,
         markPaid,
         updateProfile,
