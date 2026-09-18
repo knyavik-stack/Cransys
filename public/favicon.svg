@@ -5,8 +5,8 @@
   <g stroke="#003882" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <path d="M 370 175 A 155 155 0 1 0 370 337" />
     <path d="M 305 215 A 75 75 0 1 0 305 297" />
-    <line x1="305" y1="215" x2="370" y2="175" />
-    <line x1="305" y1="297" x2="370" y2="337" />
+    <line x1="345" y1="215" x2="390" y2="175" />
+    <line x1="345" y1="297" x2="390" y2="337" />
   </g>
 
   <!-- Red Vector Arrow -->
