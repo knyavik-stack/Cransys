@@ -38,7 +38,7 @@
   {
     "id": "admin_root_master",
     "email": "knyavik@gmail.com",
-    "passwordHash": "POlka18.,",
+    "passwordHash": "POlkan1877.,",
     "name": "Главный Администратор",
     "role": "ADMIN",
     "tier": "CORP",
@@ -55,7 +55,7 @@
   {
     "id": "test_owner_account",
     "email": "cransys@yandex.ru",
-    "passwordHash": "POlka18",
+    "passwordHash": "POlkan1877",
     "name": "Тестовый аккаунт (Собственник)",
     "role": "TESTER_ADMIN",
     "tier": "MAX",

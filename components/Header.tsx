@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   ShieldCheck,
   Activity,
@@ -15,6 +16,7 @@ import {
   X,
   User,
   ChevronRight,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
 import { PricingModal } from '@/components/PricingModal';
@@ -22,11 +24,15 @@ import { getTierConfig } from '@/lib/billing/tiers';
 import { Logo } from '@/components/Logo';
 
 export function Header() {
+  const pathname = usePathname();
   const { user, logout } = useUser();
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const tierConfig = getTierConfig(user?.tier);
   const isAdmin = user?.role === 'ADMIN';
+
+  const isDashboard = pathname?.startsWith('/dashboard');
+  const isAdminPage = pathname?.startsWith('/admin');
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
@@ -73,16 +79,24 @@ export function Header() {
               <Link
                 id="header-admin-link"
                 href="/admin"
-                className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors"
+                className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
+                  isAdminPage
+                    ? 'text-white bg-blue-600 border-blue-600 shadow-xs'
+                    : 'text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200'
+                }`}
               >
-                <Shield className="w-3.5 h-3.5 text-blue-600" />
+                <Shield className="w-3.5 h-3.5" />
                 <span>Панель Admin</span>
               </Link>
             ) : (
               <Link
                 id="header-history-link"
                 href="/dashboard"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
+                  isDashboard
+                    ? 'text-blue-700 bg-blue-50 border-blue-200 font-bold'
+                    : 'text-slate-700 hover:text-slate-900 border-slate-200 hover:bg-slate-50'
+                }`}
               >
                 <History className="w-3.5 h-3.5 text-slate-500" />
                 <span>Кабинет</span>
