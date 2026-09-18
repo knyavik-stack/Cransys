@@ -64,6 +64,7 @@ export function DirectConnectCard({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isTokenExpired, setIsTokenExpired] = useState(false);
+  const [isAppPendingApproval, setIsAppPendingApproval] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Кабинеты субклиентов агентства (если аккаунт агентский)
@@ -183,6 +184,7 @@ export function DirectConnectCard({
       setNotice(null);
       setApiError(null);
       setIsTokenExpired(false);
+      setIsAppPendingApproval(false);
 
       try {
         const headers: Record<string, string> = {};
@@ -207,6 +209,10 @@ export function DirectConnectCard({
 
           if (data.isTokenExpired) {
             setIsTokenExpired(true);
+          }
+
+          if (data.isApplicationNotApproved || data.errorCode === 58) {
+            setIsAppPendingApproval(true);
           }
 
           if (data.apiError) {
@@ -690,7 +696,60 @@ export function DirectConnectCard({
             </div>
           )}
 
-          {apiError && !isTokenExpired && (
+          {/* ПРЕДУПРЕЖДЕНИЕ О НЕОБХОДИМОСТИ ПОДТВЕРЖДЕНИЯ ЗАЯВКИ ПРИЛОЖЕНИЯ В ДИРЕКТЕ (КОД 58) */}
+          {isAppPendingApproval && (
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1.5">
+                  <div className="font-bold text-amber-900 text-[13px]">
+                    Требуется подтвердить заявку на доступ к API Директа (код 58)
+                  </div>
+                  <p className="text-amber-800 leading-relaxed">
+                    Программный доступ к вашему кабинету открыт, но для внешнего приложения требуется однократное подтверждение заявки в интерфейсе Яндекс.Директа.
+                  </p>
+                  <div className="bg-amber-100/70 p-3 rounded-lg border border-amber-200/80 space-y-1.5 text-[11px] text-amber-900">
+                    <div className="font-semibold">Как подтвердить за 1 минуту:</div>
+                    <ol className="list-decimal list-inside space-y-1">
+                      <li>
+                        Откройте страницу настроек API Директа:{' '}
+                        <a
+                          href="https://direct.yandex.ru/registered/main.pl?cmd=apiSettings"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold underline text-amber-950 hover:text-black inline-flex items-center gap-0.5"
+                        >
+                          direct.yandex.ru/registered/main.pl?cmd=apiSettings
+                          <ExternalLink className="w-3 h-3 inline" />
+                        </a>
+                      </li>
+                      <li>
+                        В блоке «Заявки на доступ» или «Мои приложения» найдите приложение и нажмите <b>«Подтвердить»</b> (или отправьте заявку на доступ к API).
+                      </li>
+                      <li>
+                        После подтверждения вернитесь сюда и нажмите кнопку <b>«Обновить данные»</b> ниже.
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-1 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetchStatus(true);
+                    fetchCampaigns();
+                  }}
+                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shrink-0 cursor-pointer shadow-2xs flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCampaigns ? 'animate-spin' : ''}`} />
+                  <span>Обновить данные после подтверждения</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {apiError && !isTokenExpired && !isAppPendingApproval && (
             <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <div>

@@ -143,22 +143,29 @@ export async function GET(req: NextRequest) {
       const errCode = directJson.error.error_code;
       const errDetail = directJson.error.error_detail || directJson.error.error_string || 'Неизвестная ошибка API';
       const isTokenExpired = errCode === 53 || errCode === 52;
+      const isApplicationNotApproved = errCode === 58;
 
       console.warn('[YANDEX DIRECT] API returned error:', directJson.error);
+
+      let customNotice = `Ошибка Яндекс.Директ API: ${errDetail} (код ${errCode})`;
+      if (isTokenExpired) {
+        customNotice = 'Срок действия токена Яндекс ID истек или у приложения не активирован доступ к API Яндекс.Директ (direct:api).';
+      } else if (isApplicationNotApproved) {
+        customNotice = 'Для OAuth-приложения требуется подтвердить доступ к API в интерфейсе Директа (код 58). Пожалуйста, подтвердите заявку на странице настроек API Директа.';
+      }
 
       return NextResponse.json({
         success: false,
         isLiveApi: false,
         isTokenExpired,
+        isApplicationNotApproved,
         connected: true,
         accountLogin: clientLogin,
         apiError: errDetail,
         errorCode: errCode,
         campaigns: [], // СТРОГО ПУСТОЙ МАССИВ: никаких демо-данных!
         totalCampaigns: 0,
-        notice: isTokenExpired
-          ? 'Срок действия токена Яндекс ID истек или у приложения не активирован доступ к API Яндекс.Директ (direct:api).'
-          : `Ошибка Яндекс.Директ API: ${errDetail} (код ${errCode})`,
+        notice: customNotice,
       });
     }
 
