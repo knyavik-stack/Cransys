@@ -28,13 +28,13 @@ import {
 } from 'lucide-react';
 import { PricingModal } from '@/components/PricingModal';
 import { TIER_LIST, UserTier } from '@/lib/billing/tiers';
-import { mockMeblironData } from '@/tests/fixtures/mebliron';
+import { mockDemoAuditData } from '@/tests/fixtures/demo';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { useUser } from '@/lib/auth/user-context';
 import { FaqSection } from '@/components/FaqSection';
 
 export default function HomePage() {
-  const { user, incrementReportsUsed } = useUser();
+  const { user } = useUser();
   const [activeReport, setActiveReport] = useState<AuditReportData | null>(null);
   const [sourceName, setSourceName] = useState<string>('');
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
@@ -66,8 +66,12 @@ export default function HomePage() {
 
   const handleRunDemoAudit = async () => {
     setIsDemoLoading(true);
+    const demoFileName = 'demo_campaign_audit.xlsx (Эталонный аудит - Тариф PRO)';
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-is-demo': 'true',
+      };
       if (user) {
         headers['x-user-id'] = user.id;
         headers['x-user-email'] = user.email;
@@ -76,33 +80,31 @@ export default function HomePage() {
       const response = await fetch('/api/audit', {
         method: 'POST',
         headers,
-        body: JSON.stringify(mockMeblironData),
+        body: JSON.stringify({ ...mockDemoAuditData, isDemo: true }),
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.report) {
-          incrementReportsUsed();
+          // ДЕМО НЕ списывает лимиты и НЕ сохраняется в историю
           setActiveReport(data.report);
-          setSourceName('sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+          setSourceName(demoFileName);
           window.scrollTo({ top: 0, behavior: 'smooth' });
           return;
         }
       }
 
       // Fallback
-      const report = await defaultAuditEngine.runAudit(mockMeblironData);
-      report.campaigns = mockMeblironData.campaigns;
-      incrementReportsUsed();
+      const report = await defaultAuditEngine.runAudit(mockDemoAuditData);
+      report.campaigns = mockDemoAuditData.campaigns;
       setActiveReport(report);
-      setSourceName('sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+      setSourceName(demoFileName);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
-      const report = await defaultAuditEngine.runAudit(mockMeblironData);
-      report.campaigns = mockMeblironData.campaigns;
-      incrementReportsUsed();
+      const report = await defaultAuditEngine.runAudit(mockDemoAuditData);
+      report.campaigns = mockDemoAuditData.campaigns;
       setActiveReport(report);
-      setSourceName('sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+      setSourceName(demoFileName);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsDemoLoading(false);
@@ -241,7 +243,7 @@ export default function HomePage() {
                       className="w-full sm:w-auto px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-2"
                     >
                       <Eye className="w-4 h-4" />
-                      <span>{isDemoLoading ? 'Запуск анализа...' : 'Посмотреть ДЕМО-отчет (без регистрации)'}</span>
+                      <span>{isDemoLoading ? 'Запуск анализа...' : 'Посмотреть ДЕМО-отчет (тариф PRO)'}</span>
                     </button>
 
                     <button

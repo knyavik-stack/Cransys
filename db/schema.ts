@@ -109,6 +109,12 @@ CREATE TABLE IF NOT EXISTS public.payments (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  id VARCHAR(50) PRIMARY KEY DEFAULT 'global',
+  settings JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_audit_jobs_user ON public.audit_jobs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_jobs_email ON public.audit_jobs(user_email);
 CREATE INDEX IF NOT EXISTS idx_audit_reports_job ON public.audit_reports(audit_job_id);

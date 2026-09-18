@@ -3,6 +3,7 @@ import './globals.css';
 import { UserProvider } from '@/lib/auth/user-context';
 import { AnalyticsProvider } from '@/components/AnalyticsProvider';
 import { CookieConsentBanner } from '@/components/CookieConsentBanner';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cransys.ru';
 
@@ -205,7 +206,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <AnalyticsProvider />
         <CookieConsentBanner />
-        <UserProvider>{children}</UserProvider>
+        <UserProvider>
+          {children}
+          <MobileBottomNav />
+        </UserProvider>
       </body>
     </html>
   );

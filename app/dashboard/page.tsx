@@ -212,7 +212,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Основной контент */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8 space-y-6">
         {selectedReport ? (
           <div>
             <div className="mb-4 flex items-center justify-between">
@@ -360,11 +360,15 @@ export default function DashboardPage() {
 
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
                 <div className="flex items-center justify-between text-slate-500 mb-2">
-                  <span className="text-xs font-medium uppercase tracking-wider">Безопасность</span>
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-medium uppercase tracking-wider">Остаток проверок</span>
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
                 </div>
-                <div className="text-sm font-bold text-slate-800 mt-1">152-ФЗ Соответствие</div>
-                <div className="text-xs text-slate-400 mt-1">Обезличенные данные</div>
+                <div className="text-2xl font-extrabold text-emerald-600 font-mono">
+                  {Math.max(0, (user?.reportsLimit || 1) - (user?.reportsUsed || 0))} шт.
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Использовано {user?.reportsUsed || 0} из {user?.reportsLimit || 1} шт.
+                </div>
               </div>
             </div>
 

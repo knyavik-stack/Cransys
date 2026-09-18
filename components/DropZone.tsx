@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileSpreadsheet, Sparkles, AlertCircle, CheckCircle2, Shield, BrainCircuit } from 'lucide-react';
-import { mockMeblironData } from '@/tests/fixtures/mebliron';
+import { UploadCloud, FileSpreadsheet, Sparkles, AlertCircle, Shield, BrainCircuit } from 'lucide-react';
+import { mockDemoAuditData } from '@/tests/fixtures/demo';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { AuditReportData, AuditInputData } from '@/lib/audit/types';
 import { parseDirectExcel } from '@/lib/parser/excel-parser';
 import { useUser } from '@/lib/auth/user-context';
 
 interface DropZoneProps {
-  onAuditComplete: (report: AuditReportData, sourceName: string) => void;
+  onAuditComplete: (report: AuditReportData, sourceName: string, isDemo?: boolean) => void;
 }
 
 export function DropZone({ onAuditComplete }: DropZoneProps) {
@@ -47,7 +47,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
         const data = await response.json();
         if (data.success && data.report) {
           incrementReportsUsed();
-          onAuditComplete(data.report, file.name);
+          onAuditComplete(data.report, file.name, false);
           return;
         }
       }
@@ -59,7 +59,7 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       const report = await defaultAuditEngine.runAudit(parsedData);
       report.campaigns = parsedData.campaigns;
       incrementReportsUsed();
-      onAuditComplete(report, file.name);
+      onAuditComplete(report, file.name, false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Не удалось обработать файл';
       setError(
@@ -74,10 +74,13 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
   const handleLoadDemo = async () => {
     setIsLoading(true);
     setError(null);
-    setStatusText('Загружаем эталонный кейс «Меблирон»...');
+    setStatusText('Загружаем демонстрационный аудит (тариф PRO)...');
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-is-demo': 'true',
+      };
       if (user) {
         headers['x-user-id'] = user.id;
         headers['x-user-email'] = user.email;
@@ -86,28 +89,29 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       const response = await fetch('/api/audit', {
         method: 'POST',
         headers,
-        body: JSON.stringify(mockMeblironData),
+        body: JSON.stringify({ ...mockDemoAuditData, isDemo: true }),
       });
+
+      const demoFileName = 'demo_campaign_audit.xlsx (Эталонный аудит - Тариф PRO)';
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.report) {
-          incrementReportsUsed();
-          onAuditComplete(data.report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+          // ДЕМО НЕ списывает лимиты и НЕ сохраняется в историю
+          onAuditComplete(data.report, demoFileName, true);
           return;
         }
       }
 
       // Fallback
-      const report = await defaultAuditEngine.runAudit(mockMeblironData);
-      report.campaigns = mockMeblironData.campaigns;
-      incrementReportsUsed();
-      onAuditComplete(report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+      const report = await defaultAuditEngine.runAudit(mockDemoAuditData);
+      report.campaigns = mockDemoAuditData.campaigns;
+      onAuditComplete(report, demoFileName, true);
     } catch {
-      const report = await defaultAuditEngine.runAudit(mockMeblironData);
-      report.campaigns = mockMeblironData.campaigns;
-      incrementReportsUsed();
-      onAuditComplete(report, 'sample_campaign_2026.xlsx (Пример рекламного кабинета)');
+      const demoFileName = 'demo_campaign_audit.xlsx (Эталонный аудит - Тариф PRO)';
+      const report = await defaultAuditEngine.runAudit(mockDemoAuditData);
+      report.campaigns = mockDemoAuditData.campaigns;
+      onAuditComplete(report, demoFileName, true);
     } finally {
       setIsLoading(false);
       setStatusText('');
@@ -208,12 +212,11 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
               }}
             >
               <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Загрузить пример выгрузки (15 тыс. ₽)</span>
+              <span>Посмотреть ДЕМО-отчет (тариф PRO)</span>
             </button>
           </div>
         </div>
       </div>
-
 
       {error && (
         <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3">
@@ -235,3 +238,4 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
     </div>
   );
 }
+

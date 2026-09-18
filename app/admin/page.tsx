@@ -781,77 +781,77 @@ export default function AdminPage() {
         </div>
 
         {/* Вкладки навигации админки */}
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 border-b border-slate-800 pb-4">
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'analytics'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Сводная аналитика</span>
+            <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Аналитика</span>
           </button>
 
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'users'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
-            <span>Управление пользователями ({users.length})</span>
+            <Users className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">База ({users.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('tiers')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'tiers'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Конфигуратор тарифов</span>
+            <Sliders className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Тарифы</span>
           </button>
 
           <button
             onClick={() => setActiveTab('funnel')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'funnel'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <PieChartIcon className="w-3.5 h-3.5" />
-            <span>Воронка и конверсии</span>
+            <PieChartIcon className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Воронка</span>
           </button>
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'settings'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Соцсети и контакты</span>
+            <Share2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Контакты</span>
           </button>
 
           <button
             onClick={() => setActiveTab('seo')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'seo'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <Globe className="w-3.5 h-3.5" />
-            <span>SEO, Аналитика и Вебмастера</span>
+            <Globe className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">SEO и Вебмастер</span>
           </button>
 
           <button
@@ -859,14 +859,14 @@ export default function AdminPage() {
               setActiveTab('privacy');
               fetchCookieConsents();
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            className={`col-span-2 sm:col-span-1 px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
               activeTab === 'privacy'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
-            <Cookie className="w-3.5 h-3.5" />
-            <span>152-ФЗ и Cookie</span>
+            <Cookie className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">152-ФЗ / Cookie</span>
           </button>
         </div>
 

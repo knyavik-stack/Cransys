@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { AuditInputData } from '@/lib/audit/types';
-import { mockMeblironData } from '@/tests/fixtures/mebliron';
+import { mockDemoAuditData } from '@/tests/fixtures/demo';
 import { parseDirectExcel } from '@/lib/parser/excel-parser';
 import { generateAiDirectAudit } from '@/lib/ai/direct-analyst';
 import { analyzeSearchQueriesAi } from '@/lib/ai/search-query-analyst';
@@ -9,8 +9,14 @@ import { saveAuditRecord } from '@/lib/db/audit-store';
 
 export async function POST(req: NextRequest) {
   try {
-    let inputData: AuditInputData = mockMeblironData;
-    let fileName = 'mebliron_feb_jul_2026.xlsx';
+    let inputData: AuditInputData = mockDemoAuditData;
+    let fileName = 'demo_campaign_audit.xlsx';
+    let isDemoRequest = false;
+
+    const isDemoHeader = req.headers.get('x-is-demo') === 'true';
+    if (isDemoHeader) {
+      isDemoRequest = true;
+    }
 
     const contentType = req.headers.get('content-type') || '';
 
@@ -24,8 +30,13 @@ export async function POST(req: NextRequest) {
       }
     } else {
       const body = await req.json().catch(() => null);
-      if (body && body.campaigns) {
-        inputData = body;
+      if (body) {
+        if (body.isDemo) {
+          isDemoRequest = true;
+        }
+        if (body.campaigns) {
+          inputData = body;
+        }
       }
     }
 
@@ -73,31 +84,35 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Сохранение в базу данных Neon и локальное хранилище
+    // 4. Сохранение в базу данных Neon и локальное хранилище (ТОЛЬКО для не-демо отчетов)
     let savedJobId: string | null = null;
-    try {
-      const userIdHeader = req.headers.get('x-user-id');
-      const userEmailHeader = req.headers.get('x-user-email');
+    if (!isDemoRequest) {
+      try {
+        const userIdHeader = req.headers.get('x-user-id');
+        const userEmailHeader = req.headers.get('x-user-email');
 
-      savedJobId = await saveAuditRecord({
-        userId: userIdHeader || null,
-        userEmail: userEmailHeader || null,
-        fileName,
-        report,
-        tier: 'EXPRESS_SINGLE',
-      });
-    } catch (dbErr) {
-      console.warn('Audit record save skipped:', dbErr);
+        savedJobId = await saveAuditRecord({
+          userId: userIdHeader || null,
+          userEmail: userEmailHeader || null,
+          fileName,
+          report,
+          tier: 'EXPRESS_SINGLE',
+        });
+      } catch (dbErr) {
+        console.warn('Audit record save skipped:', dbErr);
+      }
     }
 
     return NextResponse.json({
       success: true,
       report,
       jobId: savedJobId,
+      isDemo: isDemoRequest,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Не удалось распознать отчет';
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
+
 
