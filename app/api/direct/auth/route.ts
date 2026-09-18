@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('state', state);
   authUrl.searchParams.set('force_confirm', 'yes');
+  authUrl.searchParams.set('scope', 'direct:api');
 
   const response = NextResponse.redirect(authUrl.toString());
   response.cookies.set('yandex_auth_user', userId, {

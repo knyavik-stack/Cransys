@@ -272,38 +272,32 @@ export async function disconnectDirect(userId: string, connectionIdOrLogin?: str
     try {
       await ensureDatabaseReady();
       if (connectionIdOrLogin) {
-        // Отключаем только конкретный кабинет (по id или логину)
+        // Удаляем конкретный кабинет (по id или логину)
         await sql`
-          UPDATE public.yandex_connections
-          SET status = 'REVOKED'
-          WHERE (id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin})
-            AND (user_id = ${userId} OR user_id = 'current_user' OR TRUE);
+          DELETE FROM public.yandex_connections
+          WHERE id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin};
         `;
       } else {
-        // Отключаем все кабинеты пользователя
+        // Удаляем все кабинеты пользователя
         await sql`
-          UPDATE public.yandex_connections
-          SET status = 'REVOKED'
+          DELETE FROM public.yandex_connections
           WHERE user_id = ${userId} OR user_id = 'current_user';
         `;
       }
     } catch (e) {
-      console.warn('Error revoking Yandex connection in DB:', e);
+      console.warn('Error deleting Yandex connection in DB:', e);
     }
   }
 
-  memoryConnections = memoryConnections.map((c) => {
-    if (connectionIdOrLogin) {
-      if (c.id === connectionIdOrLogin || c.login === connectionIdOrLogin) {
-        return { ...c, status: 'REVOKED' as const };
-      }
-      return c;
-    }
-    if (c.userId === userId || c.userId === 'current_user' || userId === 'current_user') {
-      return { ...c, status: 'REVOKED' as const };
-    }
-    return c;
-  });
+  if (connectionIdOrLogin) {
+    memoryConnections = memoryConnections.filter(
+      (c) => c.id !== connectionIdOrLogin && c.login !== connectionIdOrLogin
+    );
+  } else {
+    memoryConnections = memoryConnections.filter(
+      (c) => c.userId !== userId && c.userId !== 'current_user'
+    );
+  }
   saveLocalConnections(memoryConnections);
   return true;
 }

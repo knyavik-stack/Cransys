@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDirectConnectionByUserId } from '@/lib/db/direct-connections-store';
-import { mockMeblironData } from '@/tests/fixtures/mebliron';
 
 export interface DirectCampaignItem {
   id: string;
@@ -9,14 +8,18 @@ export interface DirectCampaignItem {
   stateLabel: string;
   isStopped: boolean;
   status: string;
-  statusPayment?: string;
+  statusClarification?: string;
   type: string;
   typeLabel: string;
   startDate?: string;
+  dailyBudget?: {
+    amount: number;
+    mode: string;
+  };
   clicks?: number;
   impressions?: number;
   currency?: string;
-  isDemo?: boolean;
+  isDemo: false;
 }
 
 function mapCampaignType(type: string): string {
@@ -70,7 +73,8 @@ export async function GET(req: NextRequest) {
         {
           success: false,
           connected: false,
-          error: 'Яндекс.Директ не подключен',
+          error: 'Яндекс.Директ не подключен или сессия была отключена.',
+          campaigns: [],
         },
         { status: 401 }
       );
@@ -84,210 +88,156 @@ export async function GET(req: NextRequest) {
       'Accept-Language': 'ru',
     };
 
-    // Если это субклиент агентства, передаем Client-Login
+    // Если это агентский аккаунт и выбран конкретный субклиент
     if (clientLogin && clientLogin !== conn.login) {
       headers['Client-Login'] = clientLogin;
     }
 
-    let campaigns: DirectCampaignItem[] = [];
-    let isLiveApi = false;
-    let apiError: string | null = null;
-    let isTokenExpired = false;
-
-    try {
-      // Запрашиваем ВСЕ кампании: активные, остановленные, завершенные и архивные!
-      const directRes = await fetch('https://api.direct.yandex.com/json/v5/campaigns', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          method: 'get',
-          params: {
-            SelectionCriteria: {
-              States: ['ON', 'OFF', 'SUSPENDED', 'ENDED', 'ARCHIVED'],
-            },
-            FieldNames: [
-              'Id',
-              'Name',
-              'State',
-              'Status',
-              'StatusPayment',
-              'Type',
-              'StartDate',
-              'Statistics',
-              'Currency',
-            ],
-            Page: {
-              Limit: 100,
-            },
+    // Запрашиваем ВСЕ кампании пользователя со строго валидными полями CampaignFieldEnum
+    const directRes = await fetch('https://api.direct.yandex.com/json/v5/campaigns', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        method: 'get',
+        params: {
+          SelectionCriteria: {
+            States: ['ON', 'OFF', 'SUSPENDED', 'ENDED', 'ARCHIVED'],
           },
-        }),
-      });
+          FieldNames: [
+            'Id',
+            'Name',
+            'State',
+            'Status',
+            'Type',
+            'StartDate',
+            'Currency',
+            'DailyBudget',
+            'StatusClarification',
+          ],
+          Page: {
+            Limit: 1000,
+          },
+        },
+      }),
+    });
 
-      if (directRes.ok) {
-        const directJson = await directRes.json();
-        if (directJson.error) {
-          apiError = directJson.error.error_detail || directJson.error.error_string;
-          if (directJson.error.error_code === 53 || directJson.error.error_code === 52) {
-            isTokenExpired = true;
-          }
-          console.warn('[YANDEX DIRECT] API returned error:', directJson.error);
-        } else if (Array.isArray(directJson?.result?.Campaigns)) {
-          isLiveApi = true;
-          campaigns = directJson.result.Campaigns.map((c: any) => {
-            const stateInfo = mapCampaignState(c.State);
-            return {
-              id: String(c.Id),
-              name: c.Name || `Кампания #${c.Id}`,
-              state: c.State || 'UNKNOWN',
-              stateLabel: stateInfo.label,
-              isStopped: stateInfo.isStopped,
-              status: c.Status || '',
-              statusPayment: c.StatusPayment,
-              type: c.Type || 'TEXT_CAMPAIGN',
-              typeLabel: mapCampaignType(c.Type),
-              startDate: c.StartDate,
-              clicks: Number(c.Statistics?.Clicks) || 0,
-              impressions: Number(c.Statistics?.Impressions) || 0,
-              currency: c.Currency || 'RUB',
-              isDemo: false,
-            };
-          });
-        }
-      } else {
-        const errText = await directRes.text();
-        apiError = `Ошибка ответа Direct API: ${directRes.status}`;
-        console.warn('[YANDEX DIRECT] Campaigns request error:', errText);
-      }
-    } catch (fetchErr: any) {
-      console.warn('[YANDEX DIRECT] API Fetch failed, preparing fallback:', fetchErr);
-      apiError = fetchErr?.message || 'Сетевая ошибка API Яндекс.Директ';
+    if (!directRes.ok) {
+      const errText = await directRes.text();
+      console.warn('[YANDEX DIRECT] API HTTP error:', directRes.status, errText);
+      return NextResponse.json({
+        success: false,
+        isLiveApi: false,
+        connected: true,
+        accountLogin: clientLogin,
+        apiError: `Сервер Яндекс.Директ ответил со статусом ${directRes.status}`,
+        errorCode: directRes.status,
+        campaigns: [],
+        totalCampaigns: 0,
+      });
     }
 
-    // Если API запрос прошел успешно, возвращаем реальные кампании пользователя!
-    if (isLiveApi) {
-      if (campaigns.length === 0) {
-        return NextResponse.json({
-          success: true,
-          isLiveApi: true,
-          hasLiveCampaigns: false,
-          accountLogin: clientLogin,
-          apiError: null,
-          campaigns: [],
-          notice:
-            'В выбранном кабинете Яндекс.Директ пока не создано ни одной кампании. Создайте кампанию в Директе или выберите другой аккаунт.',
-          totalCampaigns: 0,
-        });
-      }
+    const directJson = await directRes.json();
 
-      const activeCount = campaigns.filter((c) => !c.isStopped).length;
-      const stoppedCount = campaigns.filter((c) => c.isStopped).length;
+    // Обработка ошибок от API Яндекс.Директ
+    if (directJson.error) {
+      const errCode = directJson.error.error_code;
+      const errDetail = directJson.error.error_detail || directJson.error.error_string || 'Неизвестная ошибка API';
+      const isTokenExpired = errCode === 53 || errCode === 52;
 
+      console.warn('[YANDEX DIRECT] API returned error:', directJson.error);
+
+      return NextResponse.json({
+        success: false,
+        isLiveApi: false,
+        isTokenExpired,
+        connected: true,
+        accountLogin: clientLogin,
+        apiError: errDetail,
+        errorCode: errCode,
+        campaigns: [], // СТРОГО ПУСТОЙ МАССИВ: никаких демо-данных!
+        totalCampaigns: 0,
+        notice: isTokenExpired
+          ? 'Срок действия токена Яндекс ID истек или у приложения не активирован доступ к API Яндекс.Директ (direct:api).'
+          : `Ошибка Яндекс.Директ API: ${errDetail} (код ${errCode})`,
+      });
+    }
+
+    // Успешный ответ с кампаниями пользователя
+    const rawCampaigns = Array.isArray(directJson?.result?.Campaigns) ? directJson.result.Campaigns : [];
+
+    const campaigns: DirectCampaignItem[] = rawCampaigns.map((c: any) => {
+      const stateInfo = mapCampaignState(c.State);
+      return {
+        id: String(c.Id),
+        name: c.Name || `Кампания #${c.Id}`,
+        state: c.State || 'UNKNOWN',
+        stateLabel: stateInfo.label,
+        isStopped: stateInfo.isStopped,
+        status: c.Status || '',
+        statusClarification: c.StatusClarification,
+        type: c.Type || 'TEXT_CAMPAIGN',
+        typeLabel: mapCampaignType(c.Type),
+        startDate: c.StartDate,
+        dailyBudget: c.DailyBudget
+          ? {
+              amount: Number(c.DailyBudget.Amount) / 1000000 || 0,
+              mode: c.DailyBudget.Mode || '',
+            }
+          : undefined,
+        clicks: 0,
+        impressions: 0,
+        currency: c.Currency || 'RUB',
+        isDemo: false,
+      };
+    });
+
+    if (campaigns.length === 0) {
       return NextResponse.json({
         success: true,
         isLiveApi: true,
-        hasLiveCampaigns: true,
+        hasLiveCampaigns: false,
         accountLogin: clientLogin,
         apiError: null,
-        campaigns,
-        totalCampaigns: campaigns.length,
-        activeCount,
-        stoppedCount,
-        notice:
-          stoppedCount > 0 && activeCount === 0
-            ? `В кабинете ${stoppedCount} кампаний с остановленными показами. Вы можете выбрать их для аудита настроек, минус-фраз и готовности к возобновлению.`
-            : null,
+        campaigns: [],
+        totalCampaigns: 0,
+        activeCount: 0,
+        stoppedCount: 0,
+        notice: `В подключенном кабинете «${clientLogin || 'Яндекс.Директ'}» пока не найдено кампаний. Создайте кампанию в Яндекс.Директ или подключите другой кабинет.`,
       });
     }
 
-    // Если вызов API упал с ошибкой (например, токен истек или ошибка авторизации):
-    const demoCampaigns: DirectCampaignItem[] = [
-      {
-        id: '10482910',
-        name: 'Поиск | Мебель на заказ | Москва и МО',
-        state: 'ON',
-        stateLabel: 'Идут показы',
-        isStopped: false,
-        status: 'ACCEPTED',
-        type: 'TEXT_CAMPAIGN',
-        typeLabel: 'Текстово-графическая (Поиск)',
-        startDate: '2026-01-15',
-        clicks: 480,
-        impressions: 28800,
-        currency: 'RUB',
-        isDemo: true,
-      },
-      {
-        id: '10482911',
-        name: 'РСЯ | Диваны и мягкая мебель | РФ (Остановлена)',
-        state: 'SUSPENDED',
-        stateLabel: 'Приостановлена',
-        isStopped: true,
-        status: 'ACCEPTED',
-        type: 'TEXT_CAMPAIGN',
-        typeLabel: 'Текстово-графическая (РСЯ)',
-        startDate: '2025-11-20',
-        clicks: 340,
-        impressions: 89000,
-        currency: 'RUB',
-        isDemo: true,
-      },
-      {
-        id: '10482912',
-        name: 'Смарт-баннеры | Каталог кухонь (Пауза)',
-        state: 'OFF',
-        stateLabel: 'Остановлена',
-        isStopped: true,
-        status: 'ACCEPTED',
-        type: 'SMART_CAMPAIGN',
-        typeLabel: 'Товарная / Смарт-баннеры',
-        startDate: '2025-08-10',
-        clicks: 120,
-        impressions: 14500,
-        currency: 'RUB',
-        isDemo: true,
-      },
-      {
-        id: '10482913',
-        name: 'ЕПК | Готовые шкафы-купе | Акция',
-        state: 'ON',
-        stateLabel: 'Идут показы',
-        isStopped: false,
-        status: 'ACCEPTED',
-        type: 'UNIFIED_CAMPAIGN',
-        typeLabel: 'Единая перфоманс-кампания (ЕПК)',
-        startDate: '2026-02-01',
-        clicks: 290,
-        impressions: 18200,
-        currency: 'RUB',
-        isDemo: true,
-      },
-    ];
+    const activeCount = campaigns.filter((c) => !c.isStopped).length;
+    const stoppedCount = campaigns.filter((c) => c.isStopped).length;
 
-    let userFriendlyNotice = 'Загружен демонстрационный снимок кампаний для тестирования интерфейса аудита.';
-    if (isTokenExpired) {
-      userFriendlyNotice = 'Срок действия авторизации Яндекс ID истек. Пожалуйста, нажмите «Переподключить», чтобы обновить доступ к вашим кампаниям.';
-    } else if (apiError) {
-      userFriendlyNotice = `Ответ API Яндекс.Директ: ${apiError}. Для наглядности отображены примеры кампаний с активным и остановленным статусом.`;
+    let notice: string | null = null;
+    if (stoppedCount > 0 && activeCount === 0) {
+      notice = `В кабинете ${stoppedCount} ${stoppedCount === 1 ? 'кампания' : 'кампаний'} с остановленными показами. Все они доступны для комплексного аудита настроек, минус-фраз и рисков.`;
+    } else if (stoppedCount > 0) {
+      notice = `Загружено ${campaigns.length} кампаний (${activeCount} активных, ${stoppedCount} остановленных). Доступен аудит как работающих, так и приостановленных кампаний.`;
     }
 
     return NextResponse.json({
       success: true,
-      isLiveApi: false,
-      isTokenExpired,
-      hasLiveCampaigns: false,
+      isLiveApi: true,
+      hasLiveCampaigns: true,
       accountLogin: clientLogin,
-      apiError,
-      campaigns: demoCampaigns,
-      totalCampaigns: demoCampaigns.length,
-      activeCount: demoCampaigns.filter((c) => !c.isStopped).length,
-      stoppedCount: demoCampaigns.filter((c) => c.isStopped).length,
-      notice: userFriendlyNotice,
+      apiError: null,
+      campaigns,
+      totalCampaigns: campaigns.length,
+      activeCount,
+      stoppedCount,
+      notice,
     });
-  } catch (error) {
-    console.error('[YANDEX DIRECT] Error listing campaigns:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Ошибка при получении списка кампаний из Яндекс.Директ',
-    }, { status: 500 });
+  } catch (error: any) {
+    console.error('[YANDEX DIRECT] Fatal error listing campaigns:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Внутренняя ошибка при запросе кампаний из Яндекс.Директ',
+        details: error?.message || 'Неизвестная ошибка',
+        campaigns: [],
+      },
+      { status: 500 }
+    );
   }
 }
