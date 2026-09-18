@@ -149,7 +149,7 @@ export function DirectConnectCard({
 
   // 2. Загрузка субклиентов агентства
   const fetchAccounts = useCallback(
-    async (connId?: string) => {
+    async (connId?: string, defaultLogin?: string) => {
       try {
         const headers: Record<string, string> = {};
         if (user) headers['x-user-id'] = user.id;
@@ -165,8 +165,10 @@ export function DirectConnectCard({
           if (Array.isArray(data.accounts)) {
             setAccounts(data.accounts);
             setIsAgency(Boolean(data.isAgency));
-            if (data.accounts.length > 0 && !selectedAccount) {
+            if (data.accounts.length > 0) {
               setSelectedAccount(data.accounts[0].login);
+            } else if (defaultLogin) {
+              setSelectedAccount(defaultLogin);
             }
           }
         }
@@ -174,7 +176,7 @@ export function DirectConnectCard({
         console.warn('Error fetching agency sub-accounts:', e);
       }
     },
-    [user, activeConnectionId, selectedAccount]
+    [user, activeConnectionId]
   );
 
   // 3. Загрузка реальных кампаний из Яндекс.Директ API
@@ -367,12 +369,17 @@ export function DirectConnectCard({
 
   // Переключение активной закладки (кабинета)
   const handleSelectConnection = (conn: DirectConnectionItem) => {
+    if (conn.id === activeConnectionId) return;
     setActiveConnectionId(conn.id);
     setLogin(conn.login);
     setSelectedAccount(conn.login);
+    setCampaigns([]);
+    setSelectedCampaignIds([]);
     setIsTokenExpired(false);
+    setIsAppPendingApproval(false);
     setApiError(null);
-    fetchAccounts(conn.id);
+    setNotice(null);
+    fetchAccounts(conn.id, conn.login);
     fetchCampaigns(conn.login, conn.id);
   };
 

@@ -215,6 +215,7 @@ export async function getDirectConnectionByUserId(
           WHERE (id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin})
             AND (user_id = ${userId} OR user_id = 'current_user')
             AND status = 'ACTIVE'
+          ORDER BY connected_at DESC
           LIMIT 1;
         `;
         if (rows && rows.length > 0) {

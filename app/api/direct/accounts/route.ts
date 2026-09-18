@@ -13,7 +13,8 @@ export interface DirectClientAccount {
 export async function GET(req: NextRequest) {
   try {
     const userId = req.headers.get('x-user-id') || 'current_user';
-    const conn = await getDirectConnectionByUserId(userId);
+    const connectionId = req.nextUrl.searchParams.get('connectionId') || undefined;
+    const conn = await getDirectConnectionByUserId(userId, connectionId);
 
     if (!conn || !conn.accessToken || conn.status !== 'ACTIVE') {
       return NextResponse.json({

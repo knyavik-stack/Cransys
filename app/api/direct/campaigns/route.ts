@@ -93,16 +93,14 @@ export async function GET(req: NextRequest) {
       headers['Client-Login'] = clientLogin;
     }
 
-    // Запрашиваем ВСЕ кампании пользователя со строго валидными полями CampaignFieldEnum
+    // Запрашиваем ВСЕ кампании пользователя (без фильтра States, чтобы попадали и черновики, и неоплаченные, и активные, и остановленные)
     const directRes = await fetch('https://api.direct.yandex.com/json/v5/campaigns', {
       method: 'POST',
       headers,
       body: JSON.stringify({
         method: 'get',
         params: {
-          SelectionCriteria: {
-            States: ['ON', 'OFF', 'SUSPENDED', 'ENDED', 'ARCHIVED'],
-          },
+          SelectionCriteria: {},
           FieldNames: [
             'Id',
             'Name',
