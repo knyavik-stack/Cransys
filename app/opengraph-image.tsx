@@ -29,24 +29,11 @@ export default async function Image() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             {/* SVG Logo Icon */}
             <svg width="64" height="64" viewBox="0 0 512 512" fill="none">
-              <g stroke="#7EA8D3" strokeWidth="8" opacity="0.7" strokeLinecap="round">
-                <line x1="100" y1="160" x2="430" y2="160" />
-                <line x1="100" y1="256" x2="430" y2="256" />
-                <line x1="100" y1="352" x2="430" y2="352" />
-                <line x1="160" y1="100" x2="160" y2="430" />
-                <line x1="256" y1="100" x2="256" y2="430" />
-                <line x1="352" y1="100" x2="352" y2="430" />
-              </g>
               <g stroke="#ffffff" strokeWidth="26" strokeLinecap="round" strokeLinejoin="round" fill="none">
                 <path d="M 370 175 A 155 155 0 1 0 370 337" />
                 <path d="M 305 215 A 75 75 0 1 0 305 297" />
                 <line x1="305" y1="215" x2="370" y2="175" />
                 <line x1="305" y1="297" x2="370" y2="337" />
-                <line x1="180" y1="180" x2="180" y2="332" />
-                <line x1="180" y1="256" x2="310" y2="175" />
-                <line x1="180" y1="256" x2="310" y2="337" />
-                <line x1="180" y1="180" x2="256" y2="256" />
-                <line x1="180" y1="332" x2="256" y2="256" />
               </g>
               <polygon points="395,190 418,230 355,212" fill="#DC2626" />
             </svg>
