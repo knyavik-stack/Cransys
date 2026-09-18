@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDirectConnectionByUserId } from '@/lib/db/direct-connections-store';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { saveAuditRecord } from '@/lib/db/audit-store';
+import { findUserById, updateUser } from '@/lib/db/users-store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +20,24 @@ export async function POST(req: NextRequest) {
     const periodDays: number = typeof body?.periodDays === 'number' && body.periodDays > 0 ? body.periodDays : 90;
     const dateFrom: string | undefined = typeof body?.dateFrom === 'string' && body.dateFrom.length > 5 ? body.dateFrom : undefined;
     const dateTo: string | undefined = typeof body?.dateTo === 'string' && body.dateTo.length > 5 ? body.dateTo : undefined;
+
+    // --- ПРОВЕРКА КВОТЫ АУДИТОВ ТАРИФА ---
+    const user = await findUserById(userId);
+    const isSuperAdmin = user?.role === 'ADMIN' || user?.role === 'TESTER_ADMIN';
+    if (user && !isSuperAdmin) {
+      if (user.reportsUsed >= user.reportsLimit) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Лимит проверок исчерпан (${user.reportsUsed} из ${user.reportsLimit} шт.). Для проведения новых аудитов повысьте тариф или обратитесь в поддержку.`,
+            limitExceeded: true,
+            reportsUsed: user.reportsUsed,
+            reportsLimit: user.reportsLimit,
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     const connection = await getDirectConnectionByUserId(userId, connectionId);
 
@@ -166,13 +185,28 @@ export async function POST(req: NextRequest) {
     const fileName = `Яндекс.Директ (${effectiveLogin}) — ${selectedCount} ${selectedCount === 1 ? 'кампания' : 'кампаний'} (${periodDays} дн.)`;
 
     // Персистентно сохраняем в базу данных
+    const userTier = user?.tier || 'PRO';
     const auditId = await saveAuditRecord({
       userId,
       userEmail,
       fileName,
       report,
-      tier: 'PRO',
+      tier: userTier,
     });
+
+    // Списываем 1 аудит из баланса проверок пользователя
+    let updatedReportsUsed = user?.reportsUsed ?? 0;
+    if (user && !isSuperAdmin) {
+      updatedReportsUsed = (user.reportsUsed || 0) + 1;
+      try {
+        await updateUser(user.id, {
+          reportsUsed: updatedReportsUsed,
+          lastActive: new Date().toISOString().split('T')[0],
+        });
+      } catch (err) {
+        console.warn('Error debiting user report quota:', err);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -183,6 +217,8 @@ export async function POST(req: NextRequest) {
       accountLogin: effectiveLogin,
       periodDays,
       source: 'LIVE_API',
+      reportsUsed: updatedReportsUsed,
+      reportsLimit: user?.reportsLimit ?? 10,
     });
   } catch (error: any) {
     console.error('[YANDEX DIRECT] Audit generation error:', error);

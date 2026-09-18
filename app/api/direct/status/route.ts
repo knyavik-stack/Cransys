@@ -3,19 +3,36 @@ import {
   getDirectConnectionByUserId,
   getAllDirectConnectionsForUser,
   disconnectDirect,
+  getDirectSlotsUsageForMonth,
 } from '@/lib/db/direct-connections-store';
+import { findUserById } from '@/lib/db/users-store';
+import { getTierConfig } from '@/lib/billing/tiers';
 
 export async function GET(req: NextRequest) {
   const userId = req.headers.get('x-user-id') || 'current_user';
   const targetId = req.nextUrl.searchParams.get('connectionId') || undefined;
 
-  const connections = await getAllDirectConnectionsForUser(userId);
-  const conn = await getDirectConnectionByUserId(userId, targetId);
+  const [connections, conn, slotsUsage, user] = await Promise.all([
+    getAllDirectConnectionsForUser(userId),
+    getDirectConnectionByUserId(userId, targetId),
+    getDirectSlotsUsageForMonth(userId),
+    findUserById(userId),
+  ]);
+
+  const tier = user?.tier || 'PRO';
+  const tierConfig = getTierConfig(tier);
+  const maxSlots = tierConfig.maxConnectedAccounts || 1;
 
   if (!conn && connections.length === 0) {
     return NextResponse.json({
       connected: false,
       connections: [],
+      slots: {
+        maxSlots,
+        usedSlots: slotsUsage.count,
+        usedLogins: slotsUsage.usedLogins,
+        availableSlots: Math.max(0, maxSlots - slotsUsage.count),
+      },
     });
   }
 
@@ -35,6 +52,12 @@ export async function GET(req: NextRequest) {
       lastSyncAt: c.lastSyncAt,
       status: c.status,
     })),
+    slots: {
+      maxSlots,
+      usedSlots: slotsUsage.count,
+      usedLogins: slotsUsage.usedLogins,
+      availableSlots: Math.max(0, maxSlots - slotsUsage.count),
+    },
   });
 }
 

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveDirectConnection } from '@/lib/db/direct-connections-store';
+import {
+  saveDirectConnection,
+  getDirectSlotsUsageForMonth,
+  recordDirectSlotUsage,
+} from '@/lib/db/direct-connections-store';
+import { findUserById } from '@/lib/db/users-store';
+import { getTierConfig } from '@/lib/billing/tiers';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -132,6 +138,34 @@ export async function GET(req: NextRequest) {
       }
     } catch (e) {
       console.warn('Error fetching Yandex user info:', e);
+    }
+
+    // --- ПРОВЕРКА СЛОТОВ ТАРИФА (ЗАЩИТА ОТ КАРУСЕЛИ КАБИНЕТОВ) ---
+    const user = await findUserById(targetUserId);
+    const tier = user?.tier || 'PRO';
+    const tierConfig = getTierConfig(tier);
+    const maxSlots = tierConfig.maxConnectedAccounts || 1;
+    const isSuperAdmin = user?.role === 'ADMIN' || user?.role === 'TESTER_ADMIN';
+
+    // Получаем список уникальных логинов, привязанных за текущий месяц
+    const slotsUsage = await getDirectSlotsUsageForMonth(targetUserId);
+    const alreadyUsedThisLogin = slotsUsage.usedLogins.includes(login);
+
+    // Если этот логин еще не подключался в этом месяце и лимит слотов исчерпан
+    if (!isSuperAdmin && !alreadyUsedThisLogin && slotsUsage.count >= maxSlots) {
+      const errorMsg = `Исчерпан лимит уникальных рекламных кабинетов для тарифа ${tierConfig.name} (доступно: ${maxSlots} шт. в месяц). В этом месяце уже использованы слоты: ${slotsUsage.usedLogins.join(', ')}. Для подключения дополнительных кабинетов перейдите на тариф MAX или CORP.`;
+      console.warn(`[DIRECT OAUTH] Slot limit exceeded for user ${targetUserId}. Used: ${slotsUsage.count}, Max: ${maxSlots}`);
+      
+      if (isPopup) return renderPopupResponse(false, errorMsg);
+      return NextResponse.redirect(
+        new URL(`/dashboard?direct_error=${encodeURIComponent(errorMsg)}`, req.url)
+      );
+    }
+
+    // Фиксируем логин в слотную историю расчетного месяца
+    await recordDirectSlotUsage(targetUserId, login);
+    if (targetUserId !== 'current_user') {
+      await recordDirectSlotUsage('current_user', login);
     }
 
     // Сохраняем подключение для целевого пользователя
