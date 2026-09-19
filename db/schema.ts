@@ -132,6 +132,17 @@ CREATE TABLE IF NOT EXISTS public.telemetry_events (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.cookie_consents (
+  id VARCHAR(100) PRIMARY KEY,
+  choice VARCHAR(30) NOT NULL,
+  necessary_allowed BOOLEAN DEFAULT TRUE NOT NULL,
+  analytics_allowed BOOLEAN DEFAULT TRUE NOT NULL,
+  marketing_allowed BOOLEAN DEFAULT FALSE NOT NULL,
+  user_agent VARCHAR(255),
+  ip_masked VARCHAR(50),
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_audit_jobs_user ON public.audit_jobs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_jobs_email ON public.audit_jobs(user_email);
 CREATE INDEX IF NOT EXISTS idx_audit_reports_job ON public.audit_reports(audit_job_id);
@@ -139,4 +150,5 @@ CREATE INDEX IF NOT EXISTS idx_app_users_email ON public.app_users(email);
 CREATE INDEX IF NOT EXISTS idx_telemetry_event_time ON public.telemetry_events(event_name, created_at);
 CREATE INDEX IF NOT EXISTS idx_telemetry_visitor ON public.telemetry_events(visitor_id);
 CREATE INDEX IF NOT EXISTS idx_telemetry_created_at ON public.telemetry_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_cookie_consents_created_at ON public.cookie_consents(created_at);
 `;

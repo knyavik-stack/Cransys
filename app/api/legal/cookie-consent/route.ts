@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCookieConsentData, recordCookieConsent } from '@/lib/db/cookie-consent-store';
+import { getCookieConsentDataAsync, recordCookieConsent } from '@/lib/db/cookie-consent-store';
 
 export async function GET() {
   try {
-    const data = getCookieConsentData();
+    const data = await getCookieConsentDataAsync();
     return NextResponse.json({
       success: true,
       stats: data.stats,
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const updated = recordCookieConsent({
+    const updated = await recordCookieConsent({
       choice,
       preferences,
       userAgent,
@@ -63,3 +63,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
