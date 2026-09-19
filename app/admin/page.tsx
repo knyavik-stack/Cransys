@@ -1586,6 +1586,66 @@ export default function AdminPage() {
         {/* TAB 6: SEO, Аналитика и Вебмастера */}
         {activeTab === 'seo' && (
           <div className="space-y-6 animate-fadeIn">
+            {/* Панель быстрых ссылок и инструментов SEO */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900 to-indigo-950/40 border border-blue-800/30 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>SEO & Webmaster Center</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      cransys.ru
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Управление индексацией, поисковыми сниппетами, счетчиками и верификацией
+                  </p>
+                </div>
+              </div>
+
+              {/* Быстрые действия */}
+              <div className="flex items-center gap-2">
+                <a
+                  href="/robots.txt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700"
+                >
+                  <span>robots.txt</span>
+                  <ExternalLink className="w-3 h-3 text-slate-400" />
+                </a>
+                <a
+                  href="/sitemap.xml"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700"
+                >
+                  <span>sitemap.xml</span>
+                  <ExternalLink className="w-3 h-3 text-slate-400" />
+                </a>
+                <a
+                  href="https://webmaster.yandex.ru/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-amber-500/30"
+                >
+                  <span>Яндекс.Вебмастер</span>
+                  <ExternalLink className="w-3 h-3 text-amber-400" />
+                </a>
+                <a
+                  href="https://search.google.com/search-console"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-blue-500/30"
+                >
+                  <span>Search Console</span>
+                  <ExternalLink className="w-3 h-3 text-blue-400" />
+                </a>
+              </div>
+            </div>
+
             {/* Статус-карточки интеграций */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Яндекс.Метрика статус */}
@@ -1648,7 +1708,7 @@ export default function AdminPage() {
                 <div className="mt-1 text-[11px] flex items-center gap-1">
                   {siteSettings.webmasters?.yandexVerificationCode ? (
                     <span className="text-amber-400 font-mono text-[10px] truncate">
-                      tag: {siteSettings.webmasters.yandexVerificationCode.substring(0, 10)}...
+                      tag: {siteSettings.webmasters.yandexVerificationCode.substring(0, 12)}...
                     </span>
                   ) : (
                     <span className="text-slate-500">Ожидает код подтверждения</span>
@@ -1670,7 +1730,7 @@ export default function AdminPage() {
                 <div className="mt-1 text-[11px] flex items-center gap-1">
                   {siteSettings.webmasters?.googleVerificationCode ? (
                     <span className="text-emerald-400 font-mono text-[10px] truncate">
-                      code: {siteSettings.webmasters.googleVerificationCode.substring(0, 10)}...
+                      code: {siteSettings.webmasters.googleVerificationCode.substring(0, 12)}...
                     </span>
                   ) : (
                     <span className="text-slate-500">Ожидает код Google</span>
@@ -1972,6 +2032,52 @@ export default function AdminPage() {
                     <option value="all">Разрешить индексацию (index, follow) — для продакшена</option>
                     <option value="noindex, nofollow">Запретить индексацию (noindex, nofollow) — техработы</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Живой предпросмотр сниппета в поиске Яндекса */}
+              <div className="pt-3 border-t border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Живой предпросмотр сниппета в поиске (Яндекс / Google)</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-semibold">
+                    Live Preview (cransys.ru)
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-sans space-y-1.5 shadow-inner">
+                  {/* URL и Фавикон */}
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <div className="w-4 h-4 rounded bg-blue-600 flex items-center justify-center text-[10px] font-black text-white">
+                      C
+                    </div>
+                    <span className="text-emerald-400 font-medium">https://cransys.ru</span>
+                    <span className="text-slate-600">›</span>
+                    <span className="text-slate-400">аудит</span>
+                  </div>
+
+                  {/* Заголовок сниппета */}
+                  <div className="text-base font-medium text-blue-400 hover:underline cursor-pointer leading-snug">
+                    {siteSettings.seo?.mainTitle || 'Cransys Analytics — Аудит Яндекс Директ, реклама сайта и раскрутка'}
+                  </div>
+
+                  {/* Описание сниппета */}
+                  <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">
+                    {siteSettings.seo?.mainDescription || 'Независимый аудит рекламы Яндекс Директ и сайтов за 2 минуты. Поиск скрытых сливов бюджета в РСЯ, нецелевых поисковых запросов и мобильных аномалий.'}
+                  </p>
+
+                  {/* Быстрые ссылки сниппета (SiteLinks) */}
+                  <div className="pt-2 flex flex-wrap items-center gap-3 text-[11px] text-blue-400">
+                    <span className="hover:underline cursor-pointer">Аудит кампаний</span>
+                    <span className="text-slate-700">•</span>
+                    <span className="hover:underline cursor-pointer">Тарифы и цены</span>
+                    <span className="text-slate-700">•</span>
+                    <span className="hover:underline cursor-pointer">База РСЯ</span>
+                    <span className="text-slate-700">•</span>
+                    <span className="hover:underline cursor-pointer">152-ФЗ РФ</span>
+                  </div>
                 </div>
               </div>
             </div>
