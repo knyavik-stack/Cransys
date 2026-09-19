@@ -18,119 +18,36 @@ function ensureDataDir() {
 
 // In-memory cache для мгновенной отдачи
 let memoryEvents: TelemetryEventPayload[] = [];
+let isDbTableInitialized = false;
 
-// Начальные данные для инициализации (чтобы в админке сразу отображались реалистичные продуктовые метрики платформы)
-function getInitialSeedEvents(): TelemetryEventPayload[] {
-  const seed: TelemetryEventPayload[] = [];
-  const now = Date.now();
-  const oneDay = 24 * 60 * 60 * 1000;
-
-  // Генерируем 7-дневную базовую телеметрию
-  const days = [
-    { offset: 6, visits: 180, audits: 82, pricing: 48, signups: 18, payments: 4 },
-    { offset: 5, visits: 210, audits: 95, pricing: 56, signups: 22, payments: 6 },
-    { offset: 4, visits: 245, audits: 110, pricing: 64, signups: 27, payments: 8 },
-    { offset: 3, visits: 290, audits: 135, pricing: 78, signups: 34, payments: 11 },
-    { offset: 2, visits: 340, audits: 162, pricing: 94, signups: 42, payments: 15 },
-    { offset: 1, visits: 395, audits: 190, pricing: 112, signups: 51, payments: 19 },
-    { offset: 0, visits: 430, audits: 215, pricing: 128, signups: 59, payments: 24 },
-  ];
-
-  const utmList = [
-    { source: 'yandex_direct', medium: 'cpc', campaign: 'audit_search_rf' },
-    { source: 'yandex_rsya', medium: 'cpc', campaign: 'rsya_retargeting' },
-    { source: 'organic_yandex', medium: 'organic', campaign: null },
-    { source: 'organic_google', medium: 'organic', campaign: null },
-    { source: 'telegram_channel', medium: 'social', campaign: 'tg_direct_cases' },
-    { source: 'direct_traffic', medium: 'none', campaign: null },
-  ];
-
-  let idCounter = 1;
-
-  days.forEach((d) => {
-    const dayTimestamp = now - d.offset * oneDay;
-
-    // 1. Visits
-    for (let i = 0; i < d.visits; i++) {
-      const visitorId = `vis_${d.offset}_${i}`;
-      const utm = utmList[i % utmList.length];
-      const time = new Date(dayTimestamp + (i * 300000) % oneDay).toISOString();
-
-      seed.push({
-        id: `evt_${idCounter++}`,
-        visitorId,
-        eventName: 'page_view',
-        pagePath: '/',
-        utmSource: utm.source,
-        utmMedium: utm.medium,
-        utmCampaign: utm.campaign,
-        createdAt: time,
-      });
-
-      // 2. Audits
-      if (i < d.audits) {
-        seed.push({
-          id: `evt_${idCounter++}`,
-          visitorId,
-          eventName: 'audit_completed',
-          pagePath: '/',
-          utmSource: utm.source,
-          utmMedium: utm.medium,
-          utmCampaign: utm.campaign,
-          metadata: { isDemo: i % 3 === 0, wasteLossRub: 45000 + (i * 1200) % 180000 },
-          createdAt: new Date(new Date(time).getTime() + 120000).toISOString(),
-        });
-      }
-
-      // 3. Pricing
-      if (i < d.pricing) {
-        seed.push({
-          id: `evt_${idCounter++}`,
-          visitorId,
-          eventName: 'pricing_open',
-          pagePath: '/',
-          utmSource: utm.source,
-          utmMedium: utm.medium,
-          utmCampaign: utm.campaign,
-          metadata: { tier: i % 2 === 0 ? 'PRO' : 'MAX' },
-          createdAt: new Date(new Date(time).getTime() + 240000).toISOString(),
-        });
-      }
-
-      // 4. Signups
-      if (i < d.signups) {
-        seed.push({
-          id: `evt_${idCounter++}`,
-          visitorId,
-          userId: `user_seed_${i}`,
-          eventName: 'auth_registered',
-          pagePath: '/sign-up',
-          utmSource: utm.source,
-          utmMedium: utm.medium,
-          utmCampaign: utm.campaign,
-          createdAt: new Date(new Date(time).getTime() + 360000).toISOString(),
-        });
-      }
-
-      // 5. Payments
-      if (i < d.payments) {
-        seed.push({
-          id: `evt_${idCounter++}`,
-          visitorId,
-          userId: `user_seed_${i}`,
-          eventName: 'payment_completed',
-          pagePath: '/dashboard',
-          utmSource: utm.source,
-          utmMedium: utm.medium,
-          utmCampaign: utm.campaign,
-          metadata: { tier: 'PRO', amount: 4900 },
-          createdAt: new Date(new Date(time).getTime() + 600000).toISOString(),
-        });
-      }
-    }
-  });
-
-  return seed;
+async function ensureDbTable(db: any) {
+  if (isDbTableInitialized) return;
+  try {
+    await (db as any)(`
+      CREATE TABLE IF NOT EXISTS public.telemetry_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        visitor_id VARCHAR(64) NOT NULL,
+        user_id VARCHAR(255),
+        event_name VARCHAR(64) NOT NULL,
+        page_path VARCHAR(255) NOT NULL,
+        utm_source VARCHAR(64),
+        utm_medium VARCHAR(64),
+        utm_campaign VARCHAR(128),
+        utm_content VARCHAR(128),
+        utm_term VARCHAR(128),
+        referrer TEXT,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        user_agent VARCHAR(255),
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_telemetry_event_time ON public.telemetry_events(event_name, created_at);
+      CREATE INDEX IF NOT EXISTS idx_telemetry_visitor ON public.telemetry_events(visitor_id);
+      CREATE INDEX IF NOT EXISTS idx_telemetry_created_at ON public.telemetry_events(created_at);
+    `);
+    isDbTableInitialized = true;
+  } catch (e) {
+    console.warn('Could not initialize telemetry_events table:', e);
+  }
 }
 
 export function getTelemetryEvents(): TelemetryEventPayload[] {
@@ -143,7 +60,7 @@ export function getTelemetryEvents(): TelemetryEventPayload[] {
     if (fs.existsSync(TELEMETRY_FILE)) {
       const content = fs.readFileSync(TELEMETRY_FILE, 'utf-8');
       const parsed = JSON.parse(content);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         memoryEvents = parsed;
         return memoryEvents;
       }
@@ -152,13 +69,34 @@ export function getTelemetryEvents(): TelemetryEventPayload[] {
     console.warn('Error reading telemetry file:', e);
   }
 
-  memoryEvents = getInitialSeedEvents();
+  // Чистый старт — только реальные живые события
+  memoryEvents = [];
   try {
     ensureDataDir();
-    fs.writeFileSync(TELEMETRY_FILE, JSON.stringify(memoryEvents, null, 2), 'utf-8');
+    fs.writeFileSync(TELEMETRY_FILE, JSON.stringify([], null, 2), 'utf-8');
   } catch {}
 
   return memoryEvents;
+}
+
+export async function clearTelemetryEvents(): Promise<void> {
+  memoryEvents = [];
+  try {
+    ensureDataDir();
+    fs.writeFileSync(TELEMETRY_FILE, JSON.stringify([], null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Could not clear telemetry file:', e);
+  }
+
+  const db = getDb();
+  if (db) {
+    try {
+      await ensureDbTable(db);
+      await (db as any)(`DELETE FROM public.telemetry_events`);
+    } catch (e) {
+      console.warn('Could not clear DB telemetry:', e);
+    }
+  }
 }
 
 export async function recordTelemetryEvent(event: Omit<TelemetryEventPayload, 'id' | 'createdAt'>): Promise<TelemetryEventPayload> {
@@ -180,14 +118,15 @@ export async function recordTelemetryEvent(event: Omit<TelemetryEventPayload, 'i
     console.warn('Could not save telemetry event to file:', e);
   }
 
-  // Асинхронно сохраняем в Neon PostgreSQL, если настроено
+  // Сохраняем в PostgreSQL (Neon) при наличии подключения
   try {
-    const sql = getDb();
-    if (sql) {
-      await (sql as any).query(
+    const db = getDb();
+    if (db) {
+      await ensureDbTable(db);
+      await (db as any)(
         `INSERT INTO public.telemetry_events 
-          (visitor_id, user_id, event_name, page_path, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, metadata, user_agent, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())`,
+         (visitor_id, user_id, event_name, page_path, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, metadata, user_agent)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           newEvent.visitorId,
           newEvent.userId || null,
@@ -283,7 +222,7 @@ export async function calculateFunnelStats(period: 'today' | '7d' | '30d' | 'all
     }
   });
 
-  const countVisits = Math.max(stepVisitors.visits.size, 1);
+  const countVisits = stepVisitors.visits.size;
   const countAudits = stepVisitors.audits.size;
   const countPricing = stepVisitors.pricing.size;
   const countSignups = stepVisitors.signups.size;
@@ -334,7 +273,7 @@ export async function calculateFunnelStats(period: 'today' | '7d' | '30d' | 'all
 
   const steps: FunnelStepData[] = rawSteps.map((st, index, arr) => {
     const prevCount = index === 0 ? st.count : arr[index - 1].count;
-    const conversionFromFirst = Math.round((st.count / countVisits) * 100 * 10) / 10;
+    const conversionFromFirst = countVisits > 0 ? Math.round((st.count / countVisits) * 100 * 10) / 10 : 0;
     const conversionFromPrev = prevCount > 0 ? Math.round((st.count / prevCount) * 100 * 10) / 10 : 0;
     const dropOffCount = Math.max(0, prevCount - st.count);
     const dropOffPercent = prevCount > 0 ? Math.round((dropOffCount / prevCount) * 100 * 10) / 10 : 0;
@@ -364,41 +303,41 @@ export async function calculateFunnelStats(period: 'today' | '7d' | '30d' | 'all
   }).sort((a, b) => b.visitors - a.visitors);
 
   // Анализ причин ухода (Drop-off Analysis)
-  const dropOffTotal = Math.max(1, countVisits - countPayments);
+  const dropOffTotal = Math.max(0, countVisits - countPayments);
   const dropOffAnalysis = [
     {
       reason: 'Посмотрели Демо, но нет под рукой свежей выгрузки XLSX из Директа',
       count: Math.round(dropOffTotal * 0.38),
-      percent: 38,
+      percent: dropOffTotal > 0 ? 38 : 0,
       color: '#3B82F6',
     },
     {
       reason: 'Требуется внутреннее согласование счета с бухгалтером или директором',
       count: Math.round(dropOffTotal * 0.27),
-      percent: 27,
+      percent: dropOffTotal > 0 ? 27 : 0,
       color: '#8B5CF6',
     },
     {
       reason: 'Ищут полностью бесплатное решение без ограничений по количеству кампаний',
       count: Math.round(dropOffTotal * 0.18),
-      percent: 18,
+      percent: dropOffTotal > 0 ? 18 : 0,
       color: '#F59E0B',
     },
     {
       reason: 'Предпочитают прямое подключение по API вместо ручной загрузки файла',
       count: Math.round(dropOffTotal * 0.12),
-      percent: 12,
+      percent: dropOffTotal > 0 ? 12 : 0,
       color: '#10B981',
     },
     {
       reason: 'Другие причины (случайный трафик, закрыли вкладку)',
       count: Math.round(dropOffTotal * 0.05),
-      percent: 5,
+      percent: dropOffTotal > 0 ? 5 : 0,
       color: '#64748B',
     },
   ];
 
-  // Динамика по дням (последние 7 дней)
+  // Динамика по дням
   const dailyDynamics: Array<{ date: string; label: string; visits: number; audits: number; signups: number; payments: number }> = [];
   const daysToShow = period === 'today' ? 1 : (period === '30d' ? 14 : 7);
 
@@ -417,10 +356,10 @@ export async function calculateFunnelStats(period: 'today' | '7d' | '30d' | 'all
     dailyDynamics.push({
       date: dateStr,
       label: labelStr,
-      visits: dayVisits || Math.round(countVisits / daysToShow),
-      audits: dayAudits || Math.round(countAudits / daysToShow),
-      signups: daySignups || Math.max(1, Math.round(countSignups / daysToShow)),
-      payments: dayPayments || Math.max(0, Math.round(countPayments / daysToShow)),
+      visits: dayVisits,
+      audits: dayAudits,
+      signups: daySignups,
+      payments: dayPayments,
     });
   }
 

@@ -302,6 +302,27 @@ export default function AdminPage() {
     }
   };
 
+  const handleClearFunnelStats = async () => {
+    if (!confirm('Вы уверены, что хотите очистить все данные телеметрии и воронки? Тестовые события будут удалены, начнется учет с чистого листа.')) {
+      return;
+    }
+    setIsLoadingFunnel(true);
+    try {
+      const res = await fetch('/api/admin/funnel', { method: 'DELETE' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.stats) {
+          setFunnelStats(data.stats);
+        }
+      }
+    } catch (e) {
+      console.error('Error clearing funnel stats:', e);
+    } finally {
+      setIsLoadingFunnel(false);
+    }
+  };
+
+
   useEffect(() => {
     let isCancelled = false;
     if (isAdmin) {
@@ -1369,6 +1390,17 @@ export default function AdminPage() {
                   title="Обновить аналитику воронки"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoadingFunnel ? 'animate-spin text-blue-400' : ''}`} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClearFunnelStats}
+                  disabled={isLoadingFunnel}
+                  className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                  title="Очистить тестовые данные воронки"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Очистить тестовые</span>
                 </button>
               </div>
             </div>
