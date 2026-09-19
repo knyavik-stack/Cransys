@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { CookieConsentRecord, CookieConsentStats } from '@/lib/settings/types';
-import { getDb } from '@/db';
+import { getDb, ensureDatabaseReady } from '@/db';
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const CONSENT_FILE = path.join(DATA_DIR, 'cookie-consents.json');
@@ -35,10 +35,11 @@ function ensureDataDir() {
   }
 }
 
-async function ensureDbTable(db: any) {
+async function ensureDbTable(sql: any) {
   if (isDbTableInitialized) return;
   try {
-    await (db as any)(`
+    await ensureDatabaseReady();
+    await sql`
       CREATE TABLE IF NOT EXISTS public.cookie_consents (
         id VARCHAR(100) PRIMARY KEY,
         choice VARCHAR(30) NOT NULL,
@@ -48,11 +49,11 @@ async function ensureDbTable(db: any) {
         user_agent VARCHAR(255),
         ip_masked VARCHAR(50),
         created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-      )
-    `);
-    await (db as any)(`
-      CREATE INDEX IF NOT EXISTS idx_cookie_consents_created_at ON public.cookie_consents(created_at)
-    `);
+      );
+    `;
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_cookie_consents_created_at ON public.cookie_consents(created_at);
+    `;
     isDbTableInitialized = true;
   } catch (e) {
     console.warn('Could not initialize cookie_consents table in DB:', e);
@@ -83,16 +84,16 @@ export function getCookieConsentData(): CookieConsentsData {
 }
 
 export async function getCookieConsentDataAsync(): Promise<CookieConsentsData> {
-  const db = getDb();
-  if (db) {
+  const sql = getDb();
+  if (sql) {
     try {
-      await ensureDbTable(db);
-      const rawRes = await (db as any)(`
+      await ensureDbTable(sql);
+      const rawRes = await sql`
         SELECT id, choice, necessary_allowed, analytics_allowed, marketing_allowed, user_agent, ip_masked, created_at
         FROM public.cookie_consents
         ORDER BY created_at DESC
-        LIMIT 100
-      `);
+        LIMIT 100;
+      `;
 
       const rows: any[] = Array.isArray(rawRes) ? rawRes : (rawRes && Array.isArray((rawRes as any).rows) ? (rawRes as any).rows : []);
 
@@ -111,15 +112,15 @@ export async function getCookieConsentDataAsync(): Promise<CookieConsentsData> {
         }));
 
         // Статистика из БД
-        const statsRaw = await (db as any)(`
+        const statsRaw = await sql`
           SELECT 
             COUNT(*)::int as total,
             COUNT(*) FILTER (WHERE choice = 'all')::int as accepted_all,
             COUNT(*) FILTER (WHERE choice = 'necessary')::int as accepted_necessary,
             COUNT(*) FILTER (WHERE choice = 'custom')::int as accepted_custom,
             MAX(created_at) as last_updated
-          FROM public.cookie_consents
-        `);
+          FROM public.cookie_consents;
+        `;
 
         const statsRows: any[] = Array.isArray(statsRaw) ? statsRaw : (statsRaw && Array.isArray((statsRaw as any).rows) ? (statsRaw as any).rows : []);
 
@@ -200,25 +201,31 @@ export async function recordCookieConsent(record: {
   }
 
   // 2. Сохранение в PostgreSQL при наличии подключения
-  const db = getDb();
-  if (db) {
+  const sql = getDb();
+  if (sql) {
     try {
-      await ensureDbTable(db);
-      await (db as any)(
-        `INSERT INTO public.cookie_consents 
+      await ensureDbTable(sql);
+      const choiceVal = record.choice;
+      const necVal = true;
+      const anaVal = Boolean(record.preferences.analytics);
+      const mktVal = Boolean(record.preferences.marketing);
+      const uaVal = record.userAgent ? record.userAgent.substring(0, 255) : null;
+      const ipVal = record.ipMasked || null;
+
+      await sql`
+        INSERT INTO public.cookie_consents 
          (id, choice, necessary_allowed, analytics_allowed, marketing_allowed, user_agent, ip_masked, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          id,
-          record.choice,
-          true,
-          Boolean(record.preferences.analytics),
-          Boolean(record.preferences.marketing),
-          record.userAgent ? record.userAgent.substring(0, 255) : null,
-          record.ipMasked || null,
-          now,
-        ]
-      );
+        VALUES (
+          ${id},
+          ${choiceVal},
+          ${necVal},
+          ${anaVal},
+          ${mktVal},
+          ${uaVal},
+          ${ipVal},
+          ${now}
+        );
+      `;
     } catch (e) {
       console.warn('DB error writing cookie consent log:', e);
     }
@@ -226,4 +233,3 @@ export async function recordCookieConsent(record: {
 
   return updated;
 }
-

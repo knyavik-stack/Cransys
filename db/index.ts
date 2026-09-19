@@ -42,7 +42,15 @@ export async function initializeDatabaseSchema(): Promise<{ success: boolean; me
       .filter((s) => s.length > 0);
 
     for (const statement of statements) {
-      await (sql as any).query(statement);
+      try {
+        if (typeof (sql as any).query === 'function') {
+          await (sql as any).query(statement);
+        } else {
+          await (sql as any)([statement] as any);
+        }
+      } catch {
+        await (sql as any)([statement] as any);
+      }
     }
     isSchemaReady = true;
     return {

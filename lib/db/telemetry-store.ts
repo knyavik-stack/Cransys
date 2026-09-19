@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { getDb } from '@/db';
+import { getDb, ensureDatabaseReady } from '@/db';
 import { TelemetryEventPayload, FunnelStatsResponse, FunnelStepData } from '@/lib/telemetry/types';
 
 const DATA_DIR = path.join(process.cwd(), '.data');
@@ -20,10 +20,11 @@ function ensureDataDir() {
 let memoryEvents: TelemetryEventPayload[] = [];
 let isDbTableInitialized = false;
 
-async function ensureDbTable(db: any) {
+async function ensureDbTable(sql: any) {
   if (isDbTableInitialized) return;
   try {
-    await (db as any)(`
+    await ensureDatabaseReady();
+    await sql`
       CREATE TABLE IF NOT EXISTS public.telemetry_events (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         visitor_id VARCHAR(64) NOT NULL,
@@ -40,10 +41,16 @@ async function ensureDbTable(db: any) {
         user_agent VARCHAR(255),
         created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
       );
+    `;
+    await sql`
       CREATE INDEX IF NOT EXISTS idx_telemetry_event_time ON public.telemetry_events(event_name, created_at);
+    `;
+    await sql`
       CREATE INDEX IF NOT EXISTS idx_telemetry_visitor ON public.telemetry_events(visitor_id);
+    `;
+    await sql`
       CREATE INDEX IF NOT EXISTS idx_telemetry_created_at ON public.telemetry_events(created_at);
-    `);
+    `;
     isDbTableInitialized = true;
   } catch (e) {
     console.warn('Could not initialize telemetry_events table:', e);
@@ -88,11 +95,11 @@ export async function clearTelemetryEvents(): Promise<void> {
     console.warn('Could not clear telemetry file:', e);
   }
 
-  const db = getDb();
-  if (db) {
+  const sql = getDb();
+  if (sql) {
     try {
-      await ensureDbTable(db);
-      await (db as any)(`DELETE FROM public.telemetry_events`);
+      await ensureDbTable(sql);
+      await sql`DELETE FROM public.telemetry_events;`;
     } catch (e) {
       console.warn('Could not clear DB telemetry:', e);
     }
@@ -120,30 +127,31 @@ export async function recordTelemetryEvent(event: Omit<TelemetryEventPayload, 'i
 
   // Сохраняем в PostgreSQL (Neon) при наличии подключения
   try {
-    const db = getDb();
-    if (db) {
-      await ensureDbTable(db);
-      await (db as any)(
-        `INSERT INTO public.telemetry_events 
+    const sql = getDb();
+    if (sql) {
+      await ensureDbTable(sql);
+      await sql`
+        INSERT INTO public.telemetry_events 
          (visitor_id, user_id, event_name, page_path, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, metadata, user_agent)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [
-          newEvent.visitorId,
-          newEvent.userId || null,
-          newEvent.eventName,
-          newEvent.pagePath,
-          newEvent.utmSource || null,
-          newEvent.utmMedium || null,
-          newEvent.utmCampaign || null,
-          newEvent.utmContent || null,
-          newEvent.utmTerm || null,
-          newEvent.referrer || null,
-          JSON.stringify(newEvent.metadata || {}),
-          newEvent.userAgent || null,
-        ]
-      ).catch(() => {});
+        VALUES (
+          ${newEvent.visitorId},
+          ${newEvent.userId || null},
+          ${newEvent.eventName},
+          ${newEvent.pagePath},
+          ${newEvent.utmSource || null},
+          ${newEvent.utmMedium || null},
+          ${newEvent.utmCampaign || null},
+          ${newEvent.utmContent || null},
+          ${newEvent.utmTerm || null},
+          ${newEvent.referrer || null},
+          ${JSON.stringify(newEvent.metadata || {})},
+          ${newEvent.userAgent || null}
+        );
+      `;
     }
-  } catch {}
+  } catch (e) {
+    console.warn('DB error writing telemetry event:', e);
+  }
 
   return newEvent;
 }
