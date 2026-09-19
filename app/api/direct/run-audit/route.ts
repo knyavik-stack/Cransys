@@ -70,7 +70,9 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         method: 'get',
         params: {
-          SelectionCriteria: {},
+          SelectionCriteria: {
+            States: ['ON', 'OFF', 'SUSPENDED', 'ENDED', 'ARCHIVED', 'CONVERTED'],
+          },
           FieldNames: [
             'Id',
             'Name',

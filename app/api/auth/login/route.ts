@@ -41,8 +41,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Строгая проверка пароля
-    if (user.passwordHash !== password) {
+    // Проверка пароля:
+    // 1. Для админа проверяем пароль из базы либо из process.env.ADMIN_PASSWORD
+    // 2. Для тестового аккаунта проверяем пароль из базы либо из process.env.TEST_USER_PASSWORD
+    // 3. Для остальных пользователей проверяем совпадение с сохраненным passwordHash
+    const isAdminUser = user.role === 'ADMIN' || user.id === 'admin_root_master' || (process.env.ADMIN_EMAIL && user.email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase());
+    const isTesterUser = user.role === 'TESTER_ADMIN' || user.id === 'test_owner_account' || (process.env.TEST_USER_EMAIL && user.email.toLowerCase() === process.env.TEST_USER_EMAIL.toLowerCase());
+
+    const isEnvAdminMatch = isAdminUser && process.env.ADMIN_PASSWORD && password === process.env.ADMIN_PASSWORD;
+    const isEnvTesterMatch = isTesterUser && process.env.TEST_USER_PASSWORD && password === process.env.TEST_USER_PASSWORD;
+    const isHashMatch = Boolean(user.passwordHash && user.passwordHash === password);
+
+    if (!isEnvAdminMatch && !isEnvTesterMatch && !isHashMatch) {
       return NextResponse.json(
         { success: false, error: 'Неверный пароль. Пожалуйста, проверьте раскладку клавиатуры или восстановите пароль.' },
         { status: 401 }

@@ -43,7 +43,7 @@ export const DEFAULT_USERS: StoredUser[] = [
   {
     id: 'admin_root_master',
     email: (process.env.ADMIN_EMAIL || 'admin@cransys.ru').toLowerCase(),
-    passwordHash: process.env.ADMIN_PASSWORD || 'AdminCransys2026!',
+    passwordHash: process.env.ADMIN_PASSWORD || '',
     name: 'Главный Администратор',
     role: 'ADMIN',
     tier: 'CORP',
@@ -60,7 +60,7 @@ export const DEFAULT_USERS: StoredUser[] = [
   {
     id: 'test_owner_account',
     email: (process.env.TEST_USER_EMAIL || 'test-owner@cransys-audit.ru').toLowerCase(),
-    passwordHash: process.env.TEST_USER_PASSWORD || 'CransysTest2026!',
+    passwordHash: process.env.TEST_USER_PASSWORD || '',
     name: 'Тестовый аккаунт (Собственник)',
     role: 'TESTER_ADMIN',
     tier: 'MAX',
@@ -77,75 +77,6 @@ export const DEFAULT_USERS: StoredUser[] = [
     agencyWebsite: 'https://agency-direct.ru',
     customNotes: 'Аудит проведен ведущим контекстологом агентства.',
   },
-  {
-    id: 'usr_alex_001',
-    email: 'alex.director@avto-podbor.ru',
-    passwordHash: 'Client2026Pass!',
-    name: 'Александр (Автоподбор РФ)',
-    role: 'USER',
-    tier: 'PRO',
-    hasPaid: true,
-    reportsUsed: 4,
-    reportsLimit: 10,
-    isBlocked: false,
-    revenue: 2990,
-    createdAt: '2026-09-02',
-    lastActive: '2026-09-15',
-    emailVerified: true,
-    agencyName: 'Автоподбор РФ',
-  },
-  {
-    id: 'usr_agency_002',
-    email: 'agency.lead@digital-scale.pro',
-    passwordHash: 'ScalePro2026!',
-    name: 'Максим (Digital Scale Agency)',
-    role: 'USER',
-    tier: 'MAX',
-    hasPaid: true,
-    reportsUsed: 18,
-    reportsLimit: 30,
-    isBlocked: false,
-    revenue: 6990,
-    createdAt: '2026-08-28',
-    lastActive: '2026-09-14',
-    emailVerified: true,
-    agencyName: 'Digital Scale Agency',
-    agencyContact: '+7 (495) 777-88-99',
-    agencyWebsite: 'https://digital-scale.pro',
-  },
-  {
-    id: 'usr_corp_003',
-    email: 'ceo@holding-group.ru',
-    passwordHash: 'Holding2026Secret!',
-    name: 'Елена (Холдинг Групп)',
-    role: 'USER',
-    tier: 'CORP',
-    hasPaid: true,
-    reportsUsed: 84,
-    reportsLimit: 500,
-    isBlocked: false,
-    revenue: 29900,
-    createdAt: '2026-09-01',
-    lastActive: '2026-09-15',
-    emailVerified: true,
-    agencyName: 'Holding Group Media',
-  },
-  {
-    id: 'usr_single_004',
-    email: 'ivan.stroy@mebel-dom.ru',
-    passwordHash: 'MebelDom123!',
-    name: 'Иван Сергеев',
-    role: 'USER',
-    tier: 'EXPRESS_SINGLE',
-    hasPaid: true,
-    reportsUsed: 1,
-    reportsLimit: 1,
-    isBlocked: false,
-    revenue: 399,
-    createdAt: '2026-09-10',
-    lastActive: '2026-09-12',
-    emailVerified: true,
-  },
 ];
 
 // In-memory cache
@@ -160,7 +91,12 @@ function loadLocalFile(): StoredUser[] | null {
       const content = fs.readFileSync(USERS_FILE, 'utf-8');
       const parsed = JSON.parse(content);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        // Никогда не восстанавливаем пароли из файла
+        return parsed.map((u: any) => ({
+          ...u,
+          passwordHash: '',
+          verificationCode: undefined,
+        }));
       }
     }
   } catch (e) {
@@ -172,7 +108,12 @@ function loadLocalFile(): StoredUser[] | null {
 function writeLocalFile(users: StoredUser[]) {
   try {
     ensureDataDir();
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+    // СТРОГО ИСКЛЮЧАЕМ пароли и секреты перед любой записью на диск!
+    const sanitized = users.map((u) => {
+      const { passwordHash, verificationCode, ...safeUser } = u;
+      return safeUser;
+    });
+    fs.writeFileSync(USERS_FILE, JSON.stringify(sanitized, null, 2), 'utf-8');
   } catch (e) {
     console.warn('Error writing local users file:', e);
   }

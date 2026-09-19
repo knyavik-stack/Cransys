@@ -206,6 +206,7 @@ export function DirectConnectCard({
         const effectiveConnId = connId || activeConnectionId;
         if (effectiveConnId) params.set('connectionId', effectiveConnId);
 
+        // Если передан явный clientLogin (например, при переключении таба), используем строго его, не читая устаревший selectedAccount
         const targetLogin = clientLogin || selectedAccount || login;
         if (targetLogin) params.set('clientLogin', targetLogin);
 
@@ -378,7 +379,7 @@ export function DirectConnectCard({
   };
 
   // Переключение активной закладки (кабинета)
-  const handleSelectConnection = (conn: DirectConnectionItem) => {
+  const handleSelectConnection = async (conn: DirectConnectionItem) => {
     if (conn.id === activeConnectionId) return;
     setActiveConnectionId(conn.id);
     setLogin(conn.login);
@@ -389,8 +390,10 @@ export function DirectConnectCard({
     setIsAppPendingApproval(false);
     setApiError(null);
     setNotice(null);
-    fetchAccounts(conn.id, conn.login);
-    fetchCampaigns(conn.login, conn.id);
+
+    // Сначала загружаем субклиенты (если агентство), затем кампании строго для выбранного кабинета
+    await fetchAccounts(conn.id, conn.login);
+    await fetchCampaigns(conn.login, conn.id);
   };
 
   // Выбор пресета периода
