@@ -1,13 +1,23 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Script from 'next/script';
 import { SiteSettings } from '@/lib/settings/types';
 import { useCookieConsent } from '@/lib/consent-client';
+import { trackProductEvent } from '@/lib/telemetry/tracker';
 
 export function AnalyticsProvider() {
+  const pathname = usePathname();
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const consent = useCookieConsent();
+
+  // Автоматический трекинг page_view для продуктовой воронки
+  useEffect(() => {
+    trackProductEvent('page_view', {
+      pagePath: pathname || '/',
+    });
+  }, [pathname]);
 
   useEffect(() => {
     let isMounted = true;

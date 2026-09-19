@@ -115,8 +115,28 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.telemetry_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visitor_id VARCHAR(64) NOT NULL,
+  user_id VARCHAR(255),
+  event_name VARCHAR(64) NOT NULL,
+  page_path VARCHAR(255) NOT NULL,
+  utm_source VARCHAR(64),
+  utm_medium VARCHAR(64),
+  utm_campaign VARCHAR(128),
+  utm_content VARCHAR(128),
+  utm_term VARCHAR(128),
+  referrer TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  user_agent VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_audit_jobs_user ON public.audit_jobs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_jobs_email ON public.audit_jobs(user_email);
 CREATE INDEX IF NOT EXISTS idx_audit_reports_job ON public.audit_reports(audit_job_id);
 CREATE INDEX IF NOT EXISTS idx_app_users_email ON public.app_users(email);
+CREATE INDEX IF NOT EXISTS idx_telemetry_event_time ON public.telemetry_events(event_name, created_at);
+CREATE INDEX IF NOT EXISTS idx_telemetry_visitor ON public.telemetry_events(visitor_id);
+CREATE INDEX IF NOT EXISTS idx_telemetry_created_at ON public.telemetry_events(created_at);
 `;

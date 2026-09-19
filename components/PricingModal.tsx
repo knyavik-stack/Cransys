@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '@/lib/auth/user-context';
 import { UserTier, TIER_LIST, getTierConfig } from '@/lib/billing/tiers';
 import { Check, X, Shield, Sparkles, CreditCard, ArrowRight, Zap, Building2, KeyRound } from 'lucide-react';
+import { trackProductEvent } from '@/lib/telemetry/tracker';
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -17,10 +18,24 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      trackProductEvent('pricing_open', {
+        userId: user?.id,
+        metadata: { initialTier: initialTier || user?.tier || 'PRO' },
+      });
+    }
+  }, [isOpen, user?.id, initialTier, user?.tier]);
+
   if (!isOpen) return null;
 
   const handleSelectPlan = async (tier: UserTier) => {
     setIsProcessing(true);
+    trackProductEvent('pricing_tier_clicked', {
+      userId: user?.id,
+      metadata: { tier, price: getTierConfig(tier).price },
+    });
+
     try {
       const res = await fetch('/api/billing/create-payment', {
         method: 'POST',
@@ -33,6 +48,10 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
       });
       const data = await res.json();
       if (data.success) {
+        trackProductEvent('payment_completed', {
+          userId: user?.id,
+          metadata: { tier, amount: getTierConfig(tier).price },
+        });
         setTier(tier);
         const config = getTierConfig(tier);
         setSuccessMessage(`Тариф успешно активирован: ${config.name}`);
@@ -43,6 +62,10 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
         }, 1200);
       }
     } catch {
+      trackProductEvent('payment_completed', {
+        userId: user?.id,
+        metadata: { tier, amount: getTierConfig(tier).price, fallback: true },
+      });
       setTier(tier);
       const config = getTierConfig(tier);
       setSuccessMessage(`Тариф ${config.name} активирован.`);

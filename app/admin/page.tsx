@@ -51,6 +51,10 @@ import {
   Server,
   Cpu,
   CheckCircle,
+  MousePointerClick,
+  Layers,
+  Percent,
+  Compass,
 } from 'lucide-react';
 import {
   BarChart,
@@ -70,6 +74,7 @@ import {
 import { useUser } from '@/lib/auth/user-context';
 import { UserTier, TierDefinition, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
 import { DEFAULT_SITE_SETTINGS, SiteSettings, SocialLinkItem, CookieConsentStats, CookieConsentRecord } from '@/lib/settings/types';
+import { FunnelStatsResponse } from '@/lib/telemetry/types';
 
 export interface AdminUserRecord {
   id: string;
@@ -175,6 +180,11 @@ export default function AdminPage() {
   const [cookieLogs, setCookieLogs] = useState<CookieConsentRecord[]>([]);
   const [isLoadingCookieData, setIsLoadingCookieData] = useState(false);
 
+  // Продуктовая телеметрия и сквозная воронка конверсий
+  const [funnelPeriod, setFunnelPeriod] = useState<'today' | '7d' | '30d' | 'all'>('7d');
+  const [funnelStats, setFunnelStats] = useState<FunnelStatsResponse | null>(null);
+  const [isLoadingFunnel, setIsLoadingFunnel] = useState(false);
+
   // Модальные окна управления пользователем
   const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -275,6 +285,23 @@ export default function AdminPage() {
     }
   };
 
+  const fetchFunnelStats = async (period: 'today' | '7d' | '30d' | 'all' = funnelPeriod) => {
+    setIsLoadingFunnel(true);
+    try {
+      const res = await fetch(`/api/admin/funnel?period=${period}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.stats) {
+          setFunnelStats(data.stats);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading funnel stats:', e);
+    } finally {
+      setIsLoadingFunnel(false);
+    }
+  };
+
   useEffect(() => {
     let isCancelled = false;
     if (isAdmin) {
@@ -314,11 +341,20 @@ export default function AdminPage() {
           }
         })
         .catch((e) => console.error('Error loading cookie consents:', e));
+
+      fetch(`/api/admin/funnel?period=${funnelPeriod}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!isCancelled && data.success && data.stats) {
+            setFunnelStats(data.stats);
+          }
+        })
+        .catch((e) => console.error('Error loading funnel stats:', e));
     }
     return () => {
       isCancelled = true;
     };
-  }, [isAdmin]);
+  }, [isAdmin, funnelPeriod]);
 
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
@@ -1282,54 +1318,274 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 4: Воронка и конверсии */}
+        {/* TAB 4: Воронка и конверсии (Сквозная продуктовая телеметрия) */}
         {activeTab === 'funnel' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Причины дроп-оффа */}
-              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
-                <h3 className="text-sm font-bold text-white mb-1">Причины ухода без оплаты (Drop-off)</h3>
-                <p className="text-xs text-slate-400 mb-4">Данные поведенческого анализа пользователей</p>
-                <div className="space-y-3">
-                  {DROP_OFF_REASONS.map((item, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-300 font-medium">{item.reason}</span>
-                        <span className="text-slate-400 font-mono font-bold">
-                          {item.percent}% ({item.count} чел)
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${item.percent}%`, backgroundColor: item.color }}
-                        />
-                      </div>
-                    </div>
+            {/* Панель управления и выбора периода */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-blue-400" />
+                  <span>Сквозная продуктовая воронка и поведенческая телеметрия</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Анализ пути посетителя: от визита лендинга и Демо-аудита до регистрации и оплаты тарифов (152-ФЗ compliant).
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+                  {(
+                    [
+                      { id: 'today', label: 'Сегодня' },
+                      { id: '7d', label: '7 дней' },
+                      { id: '30d', label: '30 дней' },
+                      { id: 'all', label: 'Все время' },
+                    ] as const
+                  ).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setFunnelPeriod(p.id);
+                        fetchFunnelStats(p.id);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        funnelPeriod === p.id
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
                   ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => fetchFunnelStats(funnelPeriod)}
+                  disabled={isLoadingFunnel}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                  title="Обновить аналитику воронки"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingFunnel ? 'animate-spin text-blue-400' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Главные KPI карточки воронки */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Всего посетителей</div>
+                  <div className="text-2xl font-black text-white mt-1">
+                    {funnelStats ? funnelStats.totalVisitors.toLocaleString('ru-RU') : '—'}
+                  </div>
+                  <div className="text-[11px] text-blue-400 font-semibold mt-1">
+                    Охват за период ({funnelPeriod})
+                  </div>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <Compass className="w-6 h-6" />
                 </div>
               </div>
 
-              {/* Воронка конверсии */}
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Запусков аудита</div>
+                  <div className="text-2xl font-black text-indigo-400 mt-1">
+                    {funnelStats?.steps?.[1] ? funnelStats.steps[1].count.toLocaleString('ru-RU') : '—'}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-semibold mt-1">
+                    {funnelStats?.steps?.[1] ? `CR: ${funnelStats.steps[1].conversionFromFirst}% от входа` : '—'}
+                  </div>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <Activity className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Регистраций (152-ФЗ)</div>
+                  <div className="text-2xl font-black text-emerald-400 mt-1">
+                    {funnelStats?.steps?.[3] ? funnelStats.steps[3].count.toLocaleString('ru-RU') : '—'}
+                  </div>
+                  <div className="text-[11px] text-emerald-400/80 font-semibold mt-1">
+                    {funnelStats?.steps?.[3] ? `CR: ${funnelStats.steps[3].conversionFromFirst}% от входа` : '—'}
+                  </div>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <UserCheck className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-medium">Сквозная конверсия (В оплату)</div>
+                  <div className="text-2xl font-black text-amber-400 mt-1">
+                    {funnelStats ? `${funnelStats.conversionRateOverall}%` : '—'}
+                  </div>
+                  <div className="text-[11px] text-amber-400/80 font-semibold mt-1">
+                    {funnelStats?.steps?.[4] ? `${funnelStats.steps[4].count} успешных оплат` : '—'}
+                  </div>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <Percent className="w-6 h-6" />
+                </div>
+              </div>
+            </div>
+
+            {/* Визуальная шаговая воронка конверсий */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-white">Поэтапная визуализация воронки платформы</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Конверсия каждого шага и процент отвала пользователей</p>
+                </div>
+                <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">
+                  5 ключевых микро-конверсий
+                </span>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                {funnelStats?.steps?.map((step, idx) => {
+                  const maxCount = Math.max(...(funnelStats.steps?.map((s) => s.count) || [100]));
+                  const barWidth = Math.max(12, Math.round((step.count / maxCount) * 100));
+
+                  return (
+                    <div
+                      key={step.stepId}
+                      className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 hover:border-slate-700 transition-colors"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: step.color }}
+                          />
+                          <span className="text-xs sm:text-sm font-bold text-white">{step.title}</span>
+                          <span className="text-[11px] text-slate-400 hidden sm:inline">
+                            — {step.description}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 self-end md:self-auto">
+                          <span className="font-mono text-xs sm:text-sm font-bold text-white">
+                            {step.count.toLocaleString('ru-RU')} чел.
+                          </span>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            {step.conversionFromFirst}% от старта
+                          </span>
+                          {idx > 0 && (
+                            <span className="text-[11px] font-semibold text-slate-400">
+                              (Шаг: {step.conversionFromPrev}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Прогресс-бар шага */}
+                      <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden flex items-center">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${barWidth}%`,
+                            backgroundColor: step.color,
+                          }}
+                        />
+                      </div>
+
+                      {/* Данные дроп-оффа с предыдущего шага */}
+                      {idx > 0 && step.dropOffCount > 0 && (
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2 pt-1 border-t border-slate-900">
+                          <span>Ушли с этого шага:</span>
+                          <span className="text-red-400/90 font-medium">
+                            -{step.dropOffCount} чел. (-{step.dropOffPercent}%)
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2 Колонки: Динамика по дням и Анализ источников трафика */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Источники трафика (UTM-метки) */}
               <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex flex-col justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-white mb-1">Воронка конверсии платформы</h3>
-                  <p className="text-xs text-slate-400 mb-4">Этапы от визита до повторной оплаты</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-emerald-400" />
+                      <span>Источники трафика и конверсия каналов</span>
+                    </h3>
+                    <span className="text-[10px] text-slate-400 uppercase font-mono">UTM Tracking</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Эффективность рекламных каналов, органики и прямых заходов
+                  </p>
+
+                  <div className="space-y-2.5">
+                    {funnelStats?.utmSources && funnelStats.utmSources.length > 0 ? (
+                      funnelStats.utmSources.slice(0, 6).map((src, i) => (
+                        <div
+                          key={i}
+                          className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="font-semibold text-slate-200">{src.source}</div>
+                            <div className="text-[11px] text-slate-500">
+                              {src.visitors} визитов • {src.audits} аудитов • {src.signups} рег.
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-emerald-400 font-mono">
+                              {src.payments} оплат
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              CR: <span className="text-slate-200 font-bold">{src.conversionRate}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-6 text-center text-xs text-slate-500">
+                        Нет данных об источниках за выбранный период
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Причины дроп-оффа (Drop-off Analysis) */}
+              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-purple-400" />
+                      <span>Причины ухода без оплаты (Drop-off)</span>
+                    </h3>
+                    <span className="text-[10px] text-slate-400 uppercase font-mono">AI Behavioral</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Данные поведенческого анализа и глубинных интервью пользователей
+                  </p>
+
                   <div className="space-y-3">
-                    {[
-                      { step: '1. Посещение лендинга / Демо-аудит', val: '1 420 чел', pct: '100%', color: 'bg-blue-600' },
-                      { step: '2. Загрузка файла кампании', val: '654 чел', pct: '46%', color: 'bg-indigo-600' },
-                      { step: '3. Просмотр отчета (Экспресс)', val: '512 чел', pct: '36%', color: 'bg-purple-600' },
-                      { step: '4. Регистрация в сервисе', val: `${users.length} чел`, pct: `${Math.round((users.length / 1420) * 100)}%`, color: 'bg-emerald-600' },
-                      { step: '5. Покупка платного тарифа', val: `${paidUsersCount} чел`, pct: `${Math.round((paidUsersCount / 1420) * 100)}%`, color: 'bg-amber-600' },
-                    ].map((s, i) => (
-                      <div key={i} className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs">
-                        <span className="text-slate-300 font-medium">{s.step}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-white font-bold">{s.val}</span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
-                            {s.pct}
+                    {funnelStats?.dropOffAnalysis?.map((item, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-300 font-medium">{item.reason}</span>
+                          <span className="text-slate-400 font-mono font-bold">
+                            {item.percent}% ({item.count} чел)
                           </span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${item.percent}%`, backgroundColor: item.color }}
+                          />
                         </div>
                       </div>
                     ))}
@@ -1337,6 +1593,57 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+
+            {/* График динамики конверсий по дням */}
+            {funnelStats?.dailyDynamics && funnelStats.dailyDynamics.length > 0 && (
+              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Динамика событий воронки по дням</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Соотношение просмотров, запусков аудитов, регистраций и покупок
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="flex items-center gap-1.5 text-blue-400 font-semibold">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Визиты
+                    </span>
+                    <span className="flex items-center gap-1.5 text-indigo-400 font-semibold">
+                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block" /> Аудиты
+                    </span>
+                    <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> Регистрации
+                    </span>
+                    <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Оплаты
+                    </span>
+                  </div>
+                </div>
+
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={funnelStats.dailyDynamics} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
+                      <XAxis dataKey="label" stroke="#64748B" fontSize={11} tickLine={false} />
+                      <YAxis stroke="#64748B" fontSize={11} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#0F172A',
+                          borderColor: '#334155',
+                          borderRadius: '12px',
+                          color: '#F8FAFC',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Bar dataKey="visits" name="Визиты" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="audits" name="Аудиты" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="signups" name="Регистрации" fill="#10B981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="payments" name="Оплаты" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

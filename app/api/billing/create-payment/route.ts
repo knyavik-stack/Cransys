@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UserTier, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
 import { findUserByEmail, findUserById, updateUser } from '@/lib/db/users-store';
+import { recordTelemetryEvent } from '@/lib/db/telemetry-store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +17,18 @@ export async function POST(req: NextRequest) {
     const tierConfig = TIER_CONFIGS[normalizedTier] || TIER_CONFIGS.PRO;
     const amount = tierConfig.price;
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+    // Запись в телеметрию
+    try {
+      await recordTelemetryEvent({
+        visitorId: `vis_${(userId || 'guest').substring(0, 12)}`,
+        userId: userId || null,
+        eventName: 'payment_completed',
+        pagePath: '/dashboard',
+        metadata: { tier: normalizedTier, amount, paymentId },
+        userAgent: req.headers.get('user-agent'),
+      });
+    } catch {}
 
     // Обновляем статус пользователя в хранилище при оплате
     if (userId || userEmail) {

@@ -3,6 +3,7 @@ import { findUserByEmail, createUser, generateVerificationCode } from '@/lib/db/
 import { checkPasswordSecurity } from '@/lib/auth/password-validator';
 import { UserTier } from '@/lib/billing/tiers';
 import { sendVerificationEmail } from '@/lib/email/mailer';
+import { recordTelemetryEvent } from '@/lib/db/telemetry-store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,6 +65,18 @@ export async function POST(req: NextRequest) {
       code: verificationCode,
       name: newUser.name,
     });
+
+    // Фиксация события регистрации в телеметрии
+    try {
+      await recordTelemetryEvent({
+        visitorId: `vis_${newUser.id.substring(0, 12)}`,
+        userId: newUser.id,
+        eventName: 'auth_registered',
+        pagePath: '/sign-up',
+        metadata: { role: newUser.role, tier: newUser.tier },
+        userAgent: req.headers.get('user-agent'),
+      });
+    } catch {}
 
     return NextResponse.json({
       success: true,

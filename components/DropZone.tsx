@@ -7,6 +7,7 @@ import { defaultAuditEngine } from '@/lib/audit/engine';
 import { AuditReportData, AuditInputData } from '@/lib/audit/types';
 import { parseDirectExcel } from '@/lib/parser/excel-parser';
 import { useUser } from '@/lib/auth/user-context';
+import { trackProductEvent } from '@/lib/telemetry/tracker';
 
 interface DropZoneProps {
   onAuditComplete: (report: AuditReportData, sourceName: string, isDemo?: boolean) => void;
@@ -26,6 +27,11 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
     setStatusText('Распознаем структуру отчета (XLSX/CSV)...');
 
     try {
+      trackProductEvent('audit_init', {
+        userId: user?.id,
+        metadata: { fileName: file.name, fileSize: file.size, isDemo: false },
+      });
+
       const formData = new FormData();
       formData.append('file', file);
 
@@ -47,6 +53,15 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
         const data = await response.json();
         if (data.success && data.report) {
           incrementReportsUsed();
+          trackProductEvent('audit_completed', {
+            userId: user?.id,
+            metadata: {
+              fileName: file.name,
+              isDemo: false,
+              totalLossRub: data.report.totalLossRub,
+              overallScore: data.report.overallScore,
+            },
+          });
           onAuditComplete(data.report, file.name, false);
           return;
         }
@@ -59,6 +74,15 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       const report = await defaultAuditEngine.runAudit(parsedData);
       report.campaigns = parsedData.campaigns;
       incrementReportsUsed();
+      trackProductEvent('audit_completed', {
+        userId: user?.id,
+        metadata: {
+          fileName: file.name,
+          isDemo: false,
+          totalLossRub: report.totalLossRub,
+          overallScore: report.overallScore,
+        },
+      });
       onAuditComplete(report, file.name, false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Не удалось обработать файл';
@@ -77,6 +101,11 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
     setStatusText('Загружаем демонстрационный аудит (тариф PRO)...');
 
     try {
+      trackProductEvent('audit_init', {
+        userId: user?.id,
+        metadata: { isDemo: true, mode: 'demo' },
+      });
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'x-is-demo': 'true',
@@ -97,6 +126,10 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.report) {
+          trackProductEvent('audit_completed', {
+            userId: user?.id,
+            metadata: { isDemo: true, totalLossRub: data.report.totalLossRub },
+          });
           // ДЕМО НЕ списывает лимиты и НЕ сохраняется в историю
           onAuditComplete(data.report, demoFileName, true);
           return;
@@ -106,11 +139,19 @@ export function DropZone({ onAuditComplete }: DropZoneProps) {
       // Fallback
       const report = await defaultAuditEngine.runAudit(mockDemoAuditData);
       report.campaigns = mockDemoAuditData.campaigns;
+      trackProductEvent('audit_completed', {
+        userId: user?.id,
+        metadata: { isDemo: true, totalLossRub: report.totalLossRub },
+      });
       onAuditComplete(report, demoFileName, true);
     } catch {
       const demoFileName = 'demo_campaign_audit.xlsx (Эталонный аудит - Тариф PRO)';
       const report = await defaultAuditEngine.runAudit(mockDemoAuditData);
       report.campaigns = mockDemoAuditData.campaigns;
+      trackProductEvent('audit_completed', {
+        userId: user?.id,
+        metadata: { isDemo: true, totalLossRub: report.totalLossRub },
+      });
       onAuditComplete(report, demoFileName, true);
     } finally {
       setIsLoading(false);
