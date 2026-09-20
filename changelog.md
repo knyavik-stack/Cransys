@@ -2,6 +2,12 @@
 
 Все изменения проекта документируются в данном файле.
 
+## [2.1.6] — 2026-09-20
+### Добавление алиаса `notifyNewPayment` и интеграция обработчика ЮKassa Webhooks
+- Экспортирован алиас `notifyNewPayment` в `lib/notifications/admin-notify.ts`.
+- Интегрировано мгновенное оповещение администратора в роутах `/api/billing/create-payment` и `/api/billing/webhook`.
+- Полная проверка компиляции через `tsc --noEmit` (0 ошибок).
+
 ## [2.1.5] — 2026-09-20
 ### Расширение сигнатур нотификаций (`lib/notifications/admin-notify.ts`)
 - Добавлена гибкая поддержка параметров `email` / `userEmail` и `tier` / `tierName` во все функции отправки уведомлений (`notifyNewRegistration`, `notifyPaymentSuccess`, `notifyAuditCompleted`).

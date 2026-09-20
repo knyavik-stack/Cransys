@@ -149,8 +149,12 @@ export async function notifyNewUserRegistration(details: {
 }
 
 // Алиасы для обратной совместимости и различных сценариев импорта
+export const notifyNewPayment = notifyPaymentSuccess;
+export const notifyPayment = notifyPaymentSuccess;
+export const notifyNewPaymentSuccess = notifyPaymentSuccess;
 export const notifyNewRegistration = notifyNewUserRegistration;
 export const notifyRegistration = notifyNewUserRegistration;
-export const notifyPayment = notifyPaymentSuccess;
+export const notifyUserRegistration = notifyNewUserRegistration;
 export const notifyAudit = notifyAuditCompleted;
+export const notifyNewAudit = notifyAuditCompleted;
 
