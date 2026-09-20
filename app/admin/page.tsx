@@ -55,6 +55,12 @@ import {
   Layers,
   Percent,
   Compass,
+  Bell,
+  Receipt,
+  Copy,
+  EyeOff,
+  Smartphone,
+  CheckSquare,
 } from 'lucide-react';
 import {
   BarChart,
@@ -137,7 +143,7 @@ export default function AdminPage() {
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers' | 'settings' | 'seo' | 'privacy' | 'system'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'funnel' | 'tiers' | 'yookassa' | 'notifications' | 'settings' | 'seo' | 'privacy' | 'system'>('analytics');
 
   // Состояние пользователей, тарифов и настроек сайта
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -191,6 +197,19 @@ export default function AdminPage() {
   // Модалка редактирования тарифа
   const [editingTierId, setEditingTierId] = useState<UserTier | null>(null);
   const [editTierForm, setEditTierForm] = useState<Partial<TierDefinition>>({});
+
+  // Состояния для тестирования и отображения секретов ЮKassa & Оповещений
+  const [isTestingYookassa, setIsTestingYookassa] = useState(false);
+  const [yookassaTestResult, setYookassaTestResult] = useState<{ success: boolean; message?: string; error?: string; accountId?: string; testMode?: boolean; status?: string } | null>(null);
+  const [showYooSecret, setShowYooSecret] = useState(false);
+
+  const [isTestingTg, setIsTestingTg] = useState(false);
+  const [tgTestResult, setTgTestResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null);
+  const [showTgToken, setShowTgToken] = useState(false);
+
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [emailTestResult, setEmailTestResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null);
+  const [showSmtpPass, setShowSmtpPass] = useState(false);
 
   const isAdmin = user?.role === 'ADMIN' || user?.email?.toLowerCase().includes('admin');
 
@@ -360,7 +379,7 @@ export default function AdminPage() {
     };
   }, [isAdmin, funnelPeriod]);
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (customMessage?: string) => {
     setIsSavingSettings(true);
     try {
       const res = await fetch('/api/settings', {
@@ -371,7 +390,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success && data.settings) {
         setSiteSettings(data.settings);
-        showNotification('Настройки соцсетей и подвала успешно сохранены!');
+        showNotification(customMessage || 'Настройки успешно сохранены!');
       } else {
         showNotification(data.error || 'Ошибка при сохранении настроек');
       }
@@ -379,6 +398,89 @@ export default function AdminPage() {
       showNotification('Сетевая ошибка при сохранении настроек');
     } finally {
       setIsSavingSettings(false);
+    }
+  };
+
+  const handleTestYookassa = async () => {
+    setIsTestingYookassa(true);
+    setYookassaTestResult(null);
+    try {
+      const res = await fetch('/api/admin/yookassa/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopId: siteSettings.yookassa?.shopId,
+          secretKey: siteSettings.yookassa?.secretKey,
+        }),
+      });
+      const data = await res.json();
+      setYookassaTestResult(data);
+      if (data.success) {
+        showNotification('Успешное соединение с ЮKassa API!');
+      } else {
+        showNotification(data.error || 'Ошибка проверки ЮKassa');
+      }
+    } catch (e: any) {
+      setYookassaTestResult({ success: false, error: e?.message || 'Сбой сети при запросе к ЮKassa' });
+      showNotification('Сбой сети при обращении к ЮKassa');
+    } finally {
+      setIsTestingYookassa(false);
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    setIsTestingTg(true);
+    setTgTestResult(null);
+    try {
+      const res = await fetch('/api/admin/notifications/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: 'telegram',
+          telegram: siteSettings.notifications?.telegram,
+        }),
+      });
+      const data = await res.json();
+      if (data.telegram?.success) {
+        setTgTestResult({ success: true, message: 'Тестовое сообщение успешно доставлено в Telegram!' });
+        showNotification('Тестовое сообщение отправлено в Telegram!');
+      } else {
+        setTgTestResult({ success: false, error: data.telegram?.error || 'Не удалось отправить сообщение в Telegram' });
+        showNotification(data.telegram?.error || 'Ошибка отправки в Telegram');
+      }
+    } catch (e: any) {
+      setTgTestResult({ success: false, error: e?.message || 'Сбой сети при отправке в Telegram' });
+      showNotification('Сетевая ошибка при отправке в Telegram');
+    } finally {
+      setIsTestingTg(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    setIsTestingEmail(true);
+    setEmailTestResult(null);
+    try {
+      const res = await fetch('/api/admin/notifications/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: 'email',
+          email: siteSettings.notifications?.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.email?.success) {
+        setEmailTestResult({ success: true, message: 'Тестовое письмо успешно отправлено на указанный почтовый ящик!' });
+        showNotification('Тестовое письмо успешно отправлено!');
+      } else {
+        setEmailTestResult({ success: false, error: data.email?.error || 'Не удалось отправить тестовое письмо' });
+        showNotification(data.email?.error || 'Ошибка отправки email');
+      }
+    } catch (e: any) {
+      setEmailTestResult({ success: false, error: e?.message || 'Сбой сети при отправке email' });
+      showNotification('Сетевая ошибка при отправке email');
+    } finally {
+      setIsTestingEmail(false);
     }
   };
 
@@ -574,7 +676,11 @@ export default function AdminPage() {
   // Редактирование тарифа
   const openEditTierModal = (tierKey: UserTier) => {
     setEditingTierId(tierKey);
-    setEditTierForm(tiersConfig[tierKey] || TIER_CONFIGS[tierKey]);
+    const existing = tiersConfig[tierKey] || TIER_CONFIGS[tierKey];
+    setEditTierForm({
+      ...existing,
+      features: Array.isArray(existing.features) ? [...existing.features] : [],
+    });
   };
 
   const handleSaveTier = async (e: React.FormEvent) => {
@@ -582,12 +688,23 @@ export default function AdminPage() {
     if (!editingTierId) return;
 
     try {
+      const priceNum = Number(editTierForm.price) || 0;
+      const formattedPrice = `${priceNum.toLocaleString('ru-RU')} ₽`;
+      const cleanFeatures = (editTierForm.features || []).map((f) => f.trim()).filter(Boolean);
+
+      const patchPayload = {
+        ...editTierForm,
+        price: priceNum,
+        priceFormatted: formattedPrice,
+        features: cleanFeatures,
+      };
+
       const res = await fetch('/api/admin/tiers', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tierId: editingTierId,
-          patch: editTierForm,
+          patch: patchPayload,
         }),
       });
 
@@ -595,7 +712,7 @@ export default function AdminPage() {
       if (data.success) {
         setTiersConfig(data.tiers);
         setEditingTierId(null);
-        showNotification(`Тариф ${data.tier.name} успешно обновлен и сохранен`);
+        showNotification(`Тариф ${data.tier?.name || editTierForm.name} успешно сохранен и обновлен на сайте!`);
       } else {
         showNotification(data.error || 'Ошибка при сохранении тарифа');
       }
@@ -846,7 +963,7 @@ export default function AdminPage() {
         </div>
 
         {/* Вкладки навигации админки */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 border-b border-slate-800 pb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2 border-b border-slate-800 pb-4">
           <button
             onClick={() => setActiveTab('analytics')}
             className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
@@ -881,6 +998,30 @@ export default function AdminPage() {
           >
             <Sliders className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Тарифы</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('yookassa')}
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
+              activeTab === 'yookassa'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+            }`}
+          >
+            <CreditCard className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+            <span className="truncate">ЮKassa</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center ${
+              activeTab === 'notifications'
+                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
+                : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+            }`}
+          >
+            <Bell className="w-3.5 h-3.5 shrink-0 text-sky-400" />
+            <span className="truncate">Оповещения</span>
           </button>
 
           <button
@@ -946,7 +1087,7 @@ export default function AdminPage() {
             }`}
           >
             <Server className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Секреты / API</span>
+            <span className="truncate">Секреты</span>
           </button>
         </div>
 
@@ -1160,12 +1301,20 @@ export default function AdminPage() {
         {/* TAB 3: Конфигуратор тарифов */}
         {activeTab === 'tiers' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+            <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-base font-bold text-white">Ручная настройка параметров тарифов</h3>
-                <p className="text-xs text-slate-400">
-                  Вы можете менять цены (₽), лимиты отчетов и включать/выключать модули прямо в админке
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-blue-400" />
+                  <span>Управление тарифами, ценами и возможностями</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Любые изменения цен, бейджей, лимитов отчетов и пунктов возможностей сразу же синхронизируются с базой данных, обновляются на сайте и применяются при формировании платежей в ЮKassa.
                 </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+                  {Object.keys(tiersConfig).length} активных тарифов
+                </span>
               </div>
             </div>
 
@@ -1175,56 +1324,95 @@ export default function AdminPage() {
                 return (
                   <div
                     key={tierKey}
-                    className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4"
+                    className={`p-5 rounded-2xl bg-slate-900 border flex flex-col justify-between space-y-4 transition-all ${
+                      config.popular ? 'border-amber-500/40 shadow-lg shadow-amber-500/5' : 'border-slate-800'
+                    }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span
-                          className="px-2.5 py-0.5 rounded text-xs font-bold border"
-                          style={{
-                            backgroundColor: `${TIER_COLORS[tierKey]}20`,
-                            borderColor: `${TIER_COLORS[tierKey]}40`,
-                            color: TIER_COLORS[tierKey] || '#fff',
-                          }}
-                        >
-                          {config.name}
-                        </span>
-                        <span className="text-xl font-black text-white font-mono">{config.priceFormatted}</span>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className="px-2.5 py-0.5 rounded text-xs font-bold border"
+                              style={{
+                                backgroundColor: `${TIER_COLORS[tierKey]}20`,
+                                borderColor: `${TIER_COLORS[tierKey]}40`,
+                                color: TIER_COLORS[tierKey] || '#fff',
+                              }}
+                            >
+                              {config.name}
+                            </span>
+                            {config.badge && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                {config.badge}
+                              </span>
+                            )}
+                            {config.popular && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                ★ Хит
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-1">
+                            {config.period || 'разовый аудит'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xl font-black text-white font-mono">{config.priceFormatted}</span>
+                          <div className="text-[10px] text-slate-500">{(config.price || 0).toLocaleString('ru-RU')} ₽</div>
+                        </div>
                       </div>
 
-                      <p className="text-xs text-slate-400 mb-4">{config.description}</p>
+                      <p className="text-xs text-slate-400 mb-3 line-clamp-2">{config.description}</p>
 
-                      <div className="space-y-2 text-xs">
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                      {/* Список ключевых возможностей тарифа на сайте */}
+                      <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 mb-3 space-y-1.5">
+                        <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                          <span>Возможности на карточке:</span>
+                          <span className="text-slate-500 font-mono text-[10px]">{config.features?.length || 0} пунктов</span>
+                        </div>
+                        <ul className="space-y-1 text-[11px] text-slate-400 max-h-28 overflow-y-auto pr-1">
+                          {(config.features || []).map((f, i) => (
+                            <li key={i} className="flex items-start gap-1.5">
+                              <span className="text-emerald-400 font-bold shrink-0 leading-tight">✓</span>
+                              <span className="leading-tight text-slate-300">{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Технические параметры */}
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
                           <span className="text-slate-400">Лимит отчетов:</span>
                           <span className="font-bold text-white font-mono">{config.reportsLimit} шт</span>
                         </div>
 
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
-                          <span className="text-slate-400">Прямое Direct API:</span>
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                          <span className="text-slate-400">Direct API:</span>
                           <span className={config.hasDirectApi ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
                             {config.hasDirectApi ? '✓ Включено' : '✕ Отключено'}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
                           <span className="text-slate-400">AI Gemini выводы:</span>
                           <span className={config.hasAiInsights ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
                             {config.hasAiInsights ? '✓ Включено' : '✕ Отключено'}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
-                          <span className="text-slate-400">White-label PDF:</span>
-                          <span className={config.hasWhiteLabel ? 'text-purple-400 font-bold' : 'text-slate-600'}>
-                            {config.hasWhiteLabel ? '✓ Включено' : '✕ Отключено'}
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                          <span className="text-slate-400">Минус-слова / Поиск:</span>
+                          <span className={config.hasSearchQueryClustering ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
+                            {config.hasSearchQueryClustering ? '✓ Включено' : '✕ Отключено'}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
-                          <span className="text-slate-400">Корп. автоматизация:</span>
-                          <span className={config.hasCorpAutomation ? 'text-indigo-400 font-bold' : 'text-slate-600'}>
-                            {config.hasCorpAutomation ? '✓ Включено' : '✕ Отключено'}
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                          <span className="text-slate-400">White-label PDF:</span>
+                          <span className={config.hasWhiteLabel ? 'text-purple-400 font-bold' : 'text-slate-600'}>
+                            {config.hasWhiteLabel ? '✓ Включено' : '✕ Отключено'}
                           </span>
                         </div>
                       </div>
@@ -1233,14 +1421,800 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={() => openEditTierModal(tierKey)}
-                      className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-slate-700 transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-slate-700 transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Sliders className="w-3.5 h-3.5 text-blue-400" />
-                      <span>Изменить параметры тарифа</span>
+                      <span>Настроить тариф и возможности</span>
                     </button>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: Управление подключением ЮKassa & 54-ФЗ Онлайн-чеками */}
+        {activeTab === 'yookassa' && (
+          <div className="space-y-6">
+            {/* Сводный статус платежной системы */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-emerald-400" />
+                    <span>Полное управление подключением ЮKassa и онлайн-чеками 54-ФЗ</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Интеграция с официальным API ЮKassa. Все платежи по тарифам рассчитываются динамически с фискализацией по 54-ФЗ.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {siteSettings.yookassa?.enabled && siteSettings.yookassa?.shopId && siteSettings.yookassa?.secretKey ? (
+                    <span className="px-3 py-1.5 rounded-xl bg-emerald-950 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      {siteSettings.yookassa.isTestMode ? 'Тестовый режим (Sandbox)' : 'Боевой шлюз активен'}
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-xl bg-amber-950 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-amber-400" />
+                      Требуется настройка ключей
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Результат живого теста подключения */}
+              {yookassaTestResult && (
+                <div
+                  className={`p-4 rounded-xl border flex items-start gap-3 ${
+                    yookassaTestResult.success
+                      ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
+                      : 'bg-red-950/60 border-red-500/40 text-red-200'
+                  }`}
+                >
+                  {yookassaTestResult.success ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                  )}
+                  <div className="text-xs space-y-1">
+                    <div className="font-bold">
+                      {yookassaTestResult.success ? 'Успешное подключение к ЮKassa API!' : 'Ошибка подключения к ЮKassa API'}
+                    </div>
+                    <div>{yookassaTestResult.message || yookassaTestResult.error}</div>
+                    {yookassaTestResult.accountId && (
+                      <div className="font-mono text-[11px] opacity-80">
+                        Shop ID магазина: {yookassaTestResult.accountId} | Режим: {yookassaTestResult.testMode ? 'Тестовый' : 'Боевой'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Форма реквизитов подключения */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-950 border border-slate-800">
+                  <div>
+                    <span className="text-sm font-bold text-white">Прием платежей через ЮKassa</span>
+                    <p className="text-xs text-slate-400">Включает кнопку оплаты тарифов на сайте через официальный шлюз ЮKassa</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={siteSettings.yookassa?.enabled ?? true}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          yookassa: { ...prev.yookassa, enabled: e.target.checked },
+                        }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Идентификатор магазина (Shop ID)
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.yookassa?.shopId || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          yookassa: { ...prev.yookassa, shopId: e.target.value.trim() },
+                        }))
+                      }
+                      placeholder="Например: 123456"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <span className="text-[11px] text-slate-500 mt-1 block">Указан в личном кабинете ЮKassa в разделе «Интеграция → Ключи API»</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Секретный ключ API (Secret Key)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showYooSecret ? 'text' : 'password'}
+                        value={siteSettings.yookassa?.secretKey || ''}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            yookassa: { ...prev.yookassa, secretKey: e.target.value.trim() },
+                          }))
+                        }
+                        placeholder="test_... или live_..."
+                        className="w-full px-3.5 py-2.5 pr-10 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowYooSecret(!showYooSecret)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                      >
+                        {showYooSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      {siteSettings.yookassa?.secretKey ? 'Ключ задан и защищен' : 'Не задан. Без ключа платежи не создаются.'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <div>
+                      <span className="text-xs font-bold text-white">Тестовый режим (Sandbox)</span>
+                      <p className="text-[11px] text-slate-400">Использовать тестовые карты ЮKassa без реального списания средств</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.yookassa?.isTestMode ?? false}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            yookassa: { ...prev.yookassa, isTestMode: e.target.checked },
+                          }))
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-5 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <div>
+                      <span className="text-xs font-bold text-white">Авто-списание (Capture)</span>
+                      <p className="text-[11px] text-slate-400">Мгновенное зачисление средств без ручного двухстадийного подтверждения</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.yookassa?.autoCapture ?? true}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            yookassa: { ...prev.yookassa, autoCapture: e.target.checked },
+                          }))
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-5 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Шаблон назначения платежа
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.yookassa?.descriptionTemplate || 'Оплата тарифа {tierName} на платформе Cransys'}
+                    onChange={(e) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        yookassa: { ...prev.yookassa, descriptionTemplate: e.target.value },
+                      }))
+                    }
+                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <span className="text-[11px] text-slate-500 mt-1 block">
+                    Доступные переменные: <code className="text-emerald-400">{'{tierName}'}</code>, <code className="text-emerald-400">{'{userEmail}'}</code>
+                  </span>
+                </div>
+              </div>
+
+              {/* Блок фискализации по 54-ФЗ */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <span className="text-xs font-bold text-white">Фискализация и онлайн-чеки по 54-ФЗ</span>
+                      <p className="text-[11px] text-slate-400">Формирование чека с признаком расчета и отправка в ОФД через ЮKassa</p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={siteSettings.yookassa?.receiptEnabled ?? true}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          yookassa: { ...prev.yookassa, receiptEnabled: e.target.checked },
+                        }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                  </label>
+                </div>
+
+                {siteSettings.yookassa?.receiptEnabled && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Система налогообложения (СНО)
+                      </label>
+                      <select
+                        value={siteSettings.yookassa?.taxSystemCode ?? 2}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            yookassa: { ...prev.yookassa, taxSystemCode: Number(e.target.value) },
+                          }))
+                        }
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-900 border border-slate-800 text-white focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value={1}>1 — Общая (ОСН)</option>
+                        <option value={2}>2 — Упрощенная доход (УСН Доходы 6%)</option>
+                        <option value={3}>3 — Упрощенная доход минус расход (УСН 15%)</option>
+                        <option value={4}>4 — ЕНВД</option>
+                        <option value={5}>5 — Единый сельскохозяйственный налог (ЕСХН)</option>
+                        <option value={6}>6 — Патентная система (ПСН)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Ставка НДС цифровых услуг
+                      </label>
+                      <select
+                        value={siteSettings.yookassa?.vatCode ?? 1}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            yookassa: { ...prev.yookassa, vatCode: Number(e.target.value) },
+                          }))
+                        }
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-900 border border-slate-800 text-white focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value={1}>1 — Без НДС (типично для УСН)</option>
+                        <option value={2}>2 — НДС по ставке 0%</option>
+                        <option value={3}>3 — НДС по ставке 10%</option>
+                        <option value={4}>4 — НДС по ставке 20%</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Webhook URL подсказка */}
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Webhook URL для личного кабинета ЮKassa:</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-blue-300 mt-1 select-all break-all">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/api/billing/webhook` : '/api/billing/webhook'}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    События в ЮKassa: <code className="text-slate-400">payment.succeeded</code>, <code className="text-slate-400">payment.canceled</code>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${window.location.origin}/api/billing/webhook`;
+                    navigator.clipboard.writeText(url);
+                    showNotification('Webhook URL скопирован в буфер обмена');
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 shrink-0 self-start sm:self-center transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Копировать URL</span>
+                </button>
+              </div>
+
+              {/* Кнопки действий ЮKassa */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleTestYookassa}
+                  disabled={isTestingYookassa}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-colors flex items-center gap-2"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingYookassa ? 'animate-spin text-emerald-400' : ''}`} />
+                  <span>{isTestingYookassa ? 'Проверка соединения...' : 'Проверить подключение к ЮKassa API'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveYookassa}
+                  disabled={isSavingSettings}
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{isSavingSettings ? 'Сохранение...' : 'Сохранить настройки ЮKassa'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: Управление оповещениями (Telegram & SMTP Email) */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6">
+            {/* Telegram Bot Настройки */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Send className="w-5 h-5 text-sky-400" />
+                    <span>Мгновенные оповещения в Telegram</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Бот отправляет уведомления администратору о новых оплатах, регистрациях и проведенных аудитах рекламы.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {siteSettings.notifications?.telegram?.enabled && siteSettings.notifications?.telegram?.botToken && siteSettings.notifications?.telegram?.chatId ? (
+                    <span className="px-3 py-1.5 rounded-xl bg-sky-950 border border-sky-500/30 text-sky-300 text-xs font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-sky-400" />
+                      Telegram активен
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">
+                      Не настроен
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Результат теста Telegram */}
+              {tgTestResult && (
+                <div
+                  className={`p-4 rounded-xl border flex items-start gap-3 ${
+                    tgTestResult.success
+                      ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
+                      : 'bg-red-950/60 border-red-500/40 text-red-200'
+                  }`}
+                >
+                  {tgTestResult.success ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                  )}
+                  <div className="text-xs">
+                    <div className="font-bold">{tgTestResult.success ? 'Успешно отправлено!' : 'Ошибка отправки в Telegram'}</div>
+                    <div>{tgTestResult.message || tgTestResult.error}</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-950 border border-slate-800">
+                  <div>
+                    <span className="text-sm font-bold text-white">Включить уведомления в Telegram</span>
+                    <p className="text-xs text-slate-400">Отправка сообщений через официальный Telegram Bot API</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={siteSettings.notifications?.telegram?.enabled ?? false}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            telegram: { ...prev.notifications?.telegram, enabled: e.target.checked },
+                          },
+                        }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Telegram Bot Token
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showTgToken ? 'text' : 'password'}
+                        value={siteSettings.notifications?.telegram?.botToken || ''}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            notifications: {
+                              ...prev.notifications,
+                              telegram: { ...prev.notifications?.telegram, botToken: e.target.value.trim() },
+                            },
+                          }))
+                        }
+                        placeholder="123456789:ABCdefGHIjklMNOpqrs..."
+                        className="w-full px-3.5 py-2.5 pr-10 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-sky-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowTgToken(!showTgToken)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                      >
+                        {showTgToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-1 block">Получите у @BotFather в Telegram</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Telegram Chat ID (Получатель)
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.notifications?.telegram?.chatId || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            telegram: { ...prev.notifications?.telegram, chatId: e.target.value.trim() },
+                          },
+                        }))
+                      }
+                      placeholder="Например: 123456789 или -100123456789"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-sky-500"
+                    />
+                    <span className="text-[11px] text-slate-500 mt-1 block">Ваш ID (узнайте у @userinfobot) или ID рабочей группы</span>
+                  </div>
+                </div>
+
+                {/* Чекбоксы событий Telegram */}
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="text-xs font-bold text-white mb-2">Оповещать в Telegram при следующих событиях:</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.notifications?.telegram?.notifyOnPayment ?? true}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            notifications: {
+                              ...prev.notifications,
+                              telegram: { ...prev.notifications?.telegram, notifyOnPayment: e.target.checked },
+                            },
+                          }))
+                        }
+                        className="w-4 h-4 rounded text-sky-600 bg-slate-950 border-slate-700"
+                      />
+                      <span>💰 Оплата тарифа (сумма, тариф, пользователь)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.notifications?.telegram?.notifyOnRegistration ?? true}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            notifications: {
+                              ...prev.notifications,
+                              telegram: { ...prev.notifications?.telegram, notifyOnRegistration: e.target.checked },
+                            },
+                          }))
+                        }
+                        className="w-4 h-4 rounded text-sky-600 bg-slate-950 border-slate-700"
+                      />
+                      <span>👤 Новая регистрация пользователя</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.notifications?.telegram?.notifyOnAudit ?? false}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            notifications: {
+                              ...prev.notifications,
+                              telegram: { ...prev.notifications?.telegram, notifyOnAudit: e.target.checked },
+                            },
+                          }))
+                        }
+                        className="w-4 h-4 rounded text-sky-600 bg-slate-950 border-slate-700"
+                      />
+                      <span>📊 Завершение аудита рекламных кампаний</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.notifications?.telegram?.notifyOnSystemError ?? true}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            notifications: {
+                              ...prev.notifications,
+                              telegram: { ...prev.notifications?.telegram, notifyOnSystemError: e.target.checked },
+                            },
+                          }))
+                        }
+                        className="w-4 h-4 rounded text-sky-600 bg-slate-950 border-slate-700"
+                      />
+                      <span>🚨 Критические системные сбои и ошибки</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-start pt-1">
+                  <button
+                    type="button"
+                    onClick={handleTestTelegram}
+                    disabled={isTestingTg}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold border border-slate-700 transition-colors flex items-center gap-2"
+                  >
+                    <Send className={`w-3.5 h-3.5 ${isTestingTg ? 'animate-pulse' : ''}`} />
+                    <span>{isTestingTg ? 'Отправка...' : 'Отправить тестовое сообщение в Telegram'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Email (SMTP) Настройки */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-blue-400" />
+                    <span>Оповещения администратора по Email (SMTP)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Отправка отчетов и сводок на административную почту через корпоративный SMTP сервер.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {siteSettings.notifications?.email?.enabled && siteSettings.notifications?.email?.alertEmail ? (
+                    <span className="px-3 py-1.5 rounded-xl bg-blue-950 border border-blue-500/30 text-blue-300 text-xs font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                      Email активен
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">
+                      Не настроен
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Результат теста Email */}
+              {emailTestResult && (
+                <div
+                  className={`p-4 rounded-xl border flex items-start gap-3 ${
+                    emailTestResult.success
+                      ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
+                      : 'bg-red-950/60 border-red-500/40 text-red-200'
+                  }`}
+                >
+                  {emailTestResult.success ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                  )}
+                  <div className="text-xs">
+                    <div className="font-bold">{emailTestResult.success ? 'Письмо отправлено!' : 'Ошибка отправки Email'}</div>
+                    <div>{emailTestResult.message || emailTestResult.error}</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-950 border border-slate-800">
+                  <div>
+                    <span className="text-sm font-bold text-white">Включить Email-уведомления</span>
+                    <p className="text-xs text-slate-400">Отправка системных уведомлений на почту администратора</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={siteSettings.notifications?.email?.enabled ?? false}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            email: { ...prev.notifications?.email, enabled: e.target.checked },
+                          },
+                        }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Email получателя уведомлений
+                    </label>
+                    <input
+                      type="email"
+                      value={siteSettings.notifications?.email?.alertEmail || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            email: { ...prev.notifications?.email, alertEmail: e.target.value.trim() },
+                          },
+                        }))
+                      }
+                      placeholder="admin@cransys.ru"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      SMTP Сервер (Host)
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.notifications?.email?.smtpHost || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            email: { ...prev.notifications?.email, smtpHost: e.target.value.trim() },
+                          },
+                        }))
+                      }
+                      placeholder="smtp.yandex.ru или smtp.mail.ru"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      SMTP Порт
+                    </label>
+                    <input
+                      type="number"
+                      value={siteSettings.notifications?.email?.smtpPort || 465}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            email: { ...prev.notifications?.email, smtpPort: Number(e.target.value) },
+                          },
+                        }))
+                      }
+                      placeholder="465 (SSL) или 587 (TLS)"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      SMTP Логин / Пользователь
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.notifications?.email?.smtpUser || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            email: { ...prev.notifications?.email, smtpUser: e.target.value.trim() },
+                          },
+                        }))
+                      }
+                      placeholder="robot@cransys.ru"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      SMTP Пароль приложения
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showSmtpPass ? 'text' : 'password'}
+                        value={siteSettings.notifications?.email?.smtpPass || ''}
+                        onChange={(e) =>
+                          setSiteSettings((prev) => ({
+                            ...prev,
+                            notifications: {
+                              ...prev.notifications,
+                              email: { ...prev.notifications?.email, smtpPass: e.target.value.trim() },
+                            },
+                          }))
+                        }
+                        placeholder="••••••••"
+                        className="w-full px-3.5 py-2.5 pr-10 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSmtpPass(!showSmtpPass)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                      >
+                        {showSmtpPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Имя и адрес отправителя
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.notifications?.email?.fromAddress || ''}
+                      onChange={(e) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            email: { ...prev.notifications?.email, fromAddress: e.target.value },
+                          },
+                        }))
+                      }
+                      placeholder="«Cransys Платформа» <no-reply@cransys.ru>"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-start pt-1">
+                  <button
+                    type="button"
+                    onClick={handleTestEmail}
+                    disabled={isTestingEmail}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-bold border border-slate-700 transition-colors flex items-center gap-2"
+                  >
+                    <Mail className={`w-3.5 h-3.5 ${isTestingEmail ? 'animate-pulse' : ''}`} />
+                    <span>{isTestingEmail ? 'Отправка...' : 'Отправить тестовое письмо'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Сохранение всех оповещений */}
+              <div className="flex items-center justify-end pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleSaveNotifications}
+                  disabled={isSavingSettings}
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 transition-all flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{isSavingSettings ? 'Сохранение...' : 'Сохранить настройки оповещений'}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -3272,42 +4246,61 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* МОДАЛКА РЕДАКТИРОВАНИЯ ТАРИФА */}
+      {/* МОДАЛКА РЕДАКТИРОВАНИЯ ТАРИФА (ПОЛНОЕ УПРАВЛЕНИЕ ВОЗМОЖНОСТЯМИ И ЦЕНАМИ) */}
       {editingTierId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-white shadow-2xl space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 text-white shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-blue-400" />
-                <span>Настройка тарифа: {editTierForm.name}</span>
-              </h3>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-blue-400" />
+                  <span>Редактирование тарифа: {editTierForm.name}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Все изменения тарифа (цена, бейдж, возможности и лимиты) сразу же отобразятся на лендинге сайта и при оформлении оплаты через ЮKassa.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditingTierId(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveTier} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Название тарифа
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editTierForm.name || ''}
-                  onChange={(e) => setEditTierForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSaveTier} className="space-y-4">
+              {/* Секция 1: Основные параметры тарифа */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Цена (₽)
+                    Название тарифа
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editTierForm.name || ''}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Бейдж на карточке (например: «Хит продаж» или «Выбор агентств»)
+                  </label>
+                  <input
+                    type="text"
+                    value={editTierForm.badge || ''}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, badge: e.target.value }))}
+                    placeholder="Хит продаж / Выбор агентств / Корпоративный"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Стоимость тарифа (₽)
                   </label>
                   <input
                     type="number"
@@ -3315,13 +4308,29 @@ export default function AdminPage() {
                     min={0}
                     value={editTierForm.price ?? 0}
                     onChange={(e) => setEditTierForm((p) => ({ ...p, price: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    По этой цене будет создаваться платеж в ЮKassa: {Number(editTierForm.price || 0).toLocaleString('ru-RU')} ₽
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Описание периода (под ценой)
+                  </label>
+                  <input
+                    type="text"
+                    value={editTierForm.period || ''}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, period: e.target.value }))}
+                    placeholder="разовый аудит / пакет из 3 аудитов / в месяц"
                     className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Лимит отчетов
+                    Лимит отчетов (шт)
                   </label>
                   <input
                     type="number"
@@ -3329,76 +4338,226 @@ export default function AdminPage() {
                     min={1}
                     value={editTierForm.reportsLimit ?? 1}
                     onChange={(e) => setEditTierForm((p) => ({ ...p, reportsLimit: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Текст на кнопке действия (CTA)
+                  </label>
+                  <input
+                    type="text"
+                    value={editTierForm.cta || ''}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, cta: e.target.value }))}
+                    placeholder="Выбрать Экспресс / Подключить PRO"
                     className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-slate-800 text-xs">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Краткое описание тарифа
+                </label>
+                <textarea
+                  rows={2}
+                  value={editTierForm.description || ''}
+                  onChange={(e) => setEditTierForm((p) => ({ ...p, description: e.target.value }))}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              {/* Маркетинговые флаги */}
+              <div className="flex flex-wrap gap-4 p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={editTierForm.hasDirectApi || false}
-                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasDirectApi: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    checked={editTierForm.popular || false}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, popular: e.target.checked }))}
+                    className="w-4 h-4 rounded text-blue-600 bg-slate-900 border-slate-700"
                   />
-                  <span>Прямое подключение к API Яндекс.Директ</span>
+                  <span className="font-semibold text-amber-400">★ Выделять как популярный (Popular / Хит)</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={editTierForm.hasAiInsights || false}
-                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasAiInsights: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    checked={editTierForm.isEnterprise || false}
+                    onChange={(e) => setEditTierForm((p) => ({ ...p, isEnterprise: e.target.checked }))}
+                    className="w-4 h-4 rounded text-blue-600 bg-slate-900 border-slate-700"
                   />
-                  <span>AI Gemini рекомендации и разбор сливов</span>
+                  <span className="font-semibold text-indigo-400">🏢 Корпоративный тариф (Enterprise)</span>
                 </label>
+              </div>
 
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editTierForm.hasSearchQueryClustering || false}
-                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasSearchQueryClustering: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
-                  />
-                  <span>Кластеризация поисковых запросов и минус-слова</span>
-                </label>
+              {/* Секция 2: Редактор пунктов возможностей на сайте (Features List) */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <CheckSquare className="w-4 h-4 text-emerald-400" />
+                      <span>Пункты возможностей на карточке тарифа ({editTierForm.features?.length || 0})</span>
+                    </label>
+                    <p className="text-[11px] text-slate-400">
+                      Именно эти пункты выводятся маркерами «✓» в блоке тарифов на главной странице и в модалке оплаты.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditTierForm((p) => ({
+                        ...p,
+                        features: [...(p.features || []), ''],
+                      }));
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Добавить пункт</span>
+                  </button>
+                </div>
 
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editTierForm.hasWhiteLabel || false}
-                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasWhiteLabel: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
-                  />
-                  <span>White-label брендинг отчета (Логотип, контакты)</span>
-                </label>
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {(editTierForm.features || []).map((feature, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500 font-mono w-5 shrink-0 text-right">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        value={feature}
+                        onChange={(e) => {
+                          const next = [...(editTierForm.features || [])];
+                          next[idx] = e.target.value;
+                          setEditTierForm((p) => ({ ...p, features: next }));
+                        }}
+                        placeholder="Например: Аудит по файлу (.xlsx / .csv)"
+                        className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-800 text-white focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...(editTierForm.features || [])];
+                          next.splice(idx, 1);
+                          setEditTierForm((p) => ({ ...p, features: next }));
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+                        title="Удалить этот пункт"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {(!editTierForm.features || editTierForm.features.length === 0) && (
+                    <div className="text-xs text-slate-500 italic py-2 text-center">
+                      Список возможностей пуст. Нажмите «Добавить пункт», чтобы указать преимущества тарифа.
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editTierForm.hasCorpAutomation || false}
-                    onChange={(e) => setEditTierForm((p) => ({ ...p, hasCorpAutomation: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
-                  />
-                  <span>Корпоративная автоматизация и кастомные правила</span>
-                </label>
+              {/* Секция 3: Технические модули платформы */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="text-xs font-bold text-white mb-1.5">
+                  Технические модули и системные доступы:
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                    <input
+                      type="checkbox"
+                      checked={editTierForm.hasDirectApi || false}
+                      onChange={(e) => setEditTierForm((p) => ({ ...p, hasDirectApi: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    />
+                    <span>Прямое API Яндекс.Директ</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                    <input
+                      type="checkbox"
+                      checked={editTierForm.hasAiInsights || false}
+                      onChange={(e) => setEditTierForm((p) => ({ ...p, hasAiInsights: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    />
+                    <span>AI Gemini аналитика сливов</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                    <input
+                      type="checkbox"
+                      checked={editTierForm.hasSearchQueryClustering || false}
+                      onChange={(e) => setEditTierForm((p) => ({ ...p, hasSearchQueryClustering: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    />
+                    <span>Кластеризация поисковых запросов</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                    <input
+                      type="checkbox"
+                      checked={editTierForm.hasRsyaBlacklist || false}
+                      onChange={(e) => setEditTierForm((p) => ({ ...p, hasRsyaBlacklist: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    />
+                    <span>База 10 000+ мусорных РСЯ</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                    <input
+                      type="checkbox"
+                      checked={editTierForm.hasWhiteLabel || false}
+                      onChange={(e) => setEditTierForm((p) => ({ ...p, hasWhiteLabel: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    />
+                    <span>White-label брендирование PDF</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                    <input
+                      type="checkbox"
+                      checked={editTierForm.hasCorpAutomation || false}
+                      onChange={(e) => setEditTierForm((p) => ({ ...p, hasCorpAutomation: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    />
+                    <span>Корпоративные правила и автоматизация</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                    <input
+                      type="checkbox"
+                      checked={editTierForm.hasMultiAccounts || false}
+                      onChange={(e) => setEditTierForm((p) => ({ ...p, hasMultiAccounts: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+                    />
+                    <span>Мульти-аккаунты и несколько клиентов</span>
+                  </label>
+
+                  <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center justify-between">
+                    <span>Подключаемых аккаунтов:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={editTierForm.maxConnectedAccounts ?? 1}
+                      onChange={(e) => setEditTierForm((p) => ({ ...p, maxConnectedAccounts: Number(e.target.value) }))}
+                      className="w-16 px-2 py-1 text-xs rounded bg-slate-950 border border-slate-800 text-white font-mono text-center"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setEditingTierId(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
                 >
                   Отмена
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
                 >
-                  Сохранить тариф
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Сохранить тариф</span>
                 </button>
               </div>
             </form>

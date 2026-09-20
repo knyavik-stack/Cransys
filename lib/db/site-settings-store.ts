@@ -50,6 +50,22 @@ function mergeSettings(parsed: any): SiteSettings {
       ...DEFAULT_SITE_SETTINGS.cookieBanner,
       ...(parsed.cookieBanner || {}),
     },
+    yookassa: {
+      ...DEFAULT_SITE_SETTINGS.yookassa,
+      ...(parsed.yookassa || {}),
+    },
+    notifications: {
+      ...DEFAULT_SITE_SETTINGS.notifications,
+      ...(parsed.notifications || {}),
+      telegram: {
+        ...DEFAULT_SITE_SETTINGS.notifications.telegram,
+        ...(parsed.notifications?.telegram || {}),
+      },
+      email: {
+        ...DEFAULT_SITE_SETTINGS.notifications.email,
+        ...(parsed.notifications?.email || {}),
+      },
+    },
     socials: Array.isArray(parsed.socials) ? parsed.socials : DEFAULT_SITE_SETTINGS.socials,
   };
 }
@@ -125,6 +141,22 @@ export async function saveSiteSettingsAsync(patch: Partial<SiteSettings>): Promi
       ...current.cookieBanner,
       ...(patch.cookieBanner || {}),
     },
+    yookassa: {
+      ...current.yookassa,
+      ...(patch.yookassa || {}),
+    },
+    notifications: {
+      ...current.notifications,
+      ...(patch.notifications || {}),
+      telegram: {
+        ...current.notifications.telegram,
+        ...(patch.notifications?.telegram || {}),
+      },
+      email: {
+        ...current.notifications.email,
+        ...(patch.notifications?.email || {}),
+      },
+    },
     socials: Array.isArray(patch.socials) ? patch.socials : current.socials,
   };
 
@@ -184,6 +216,22 @@ export function updateSiteSettings(patch: Partial<SiteSettings>): SiteSettings {
     cookieBanner: {
       ...current.cookieBanner,
       ...(patch.cookieBanner || {}),
+    },
+    yookassa: {
+      ...current.yookassa,
+      ...(patch.yookassa || {}),
+    },
+    notifications: {
+      ...current.notifications,
+      ...(patch.notifications || {}),
+      telegram: {
+        ...current.notifications.telegram,
+        ...(patch.notifications?.telegram || {}),
+      },
+      email: {
+        ...current.notifications.email,
+        ...(patch.notifications?.email || {}),
+      },
     },
     socials: Array.isArray(patch.socials) ? patch.socials : current.socials,
   };

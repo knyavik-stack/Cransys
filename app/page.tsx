@@ -27,7 +27,8 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { PricingModal } from '@/components/PricingModal';
-import { TIER_LIST, UserTier } from '@/lib/billing/tiers';
+import { UserTier } from '@/lib/billing/tiers';
+import { useTiers } from '@/lib/billing/use-tiers';
 import { mockDemoAuditData } from '@/tests/fixtures/demo';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { useUser } from '@/lib/auth/user-context';
@@ -35,6 +36,7 @@ import { FaqSection } from '@/components/FaqSection';
 
 export default function HomePage() {
   const { user } = useUser();
+  const { tierList } = useTiers();
   const [activeReport, setActiveReport] = useState<AuditReportData | null>(null);
   const [sourceName, setSourceName] = useState<string>('');
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
@@ -286,7 +288,7 @@ export default function HomePage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 items-stretch">
-                  {TIER_LIST.map((plan) => {
+                  {tierList.map((plan) => {
                     const isExpanded = Boolean(expandedTiers[plan.id]);
                     const visibleFeatures = isExpanded ? plan.features : plan.features.slice(0, 4);
                     const hasMoreFeatures = plan.features.length > 4;

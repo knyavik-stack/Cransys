@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllTiers, updateTierConfig, saveAllTiers } from '@/lib/db/tiers-store';
+import { getAllTiers, fetchAllTiersAsync, updateTierConfig, saveAllTiers } from '@/lib/db/tiers-store';
 import { UserTier } from '@/lib/billing/tiers';
 
 export async function GET() {
   try {
-    const tiers = getAllTiers();
+    const tiers = await fetchAllTiersAsync();
     return NextResponse.json({ success: true, tiers });
   } catch (error) {
     console.error('Error fetching tiers:', error);
@@ -18,11 +18,17 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { tierId, patch } = body;
+    const { tierId, patch, tiers } = body;
+
+    // Поддержка сохранения всего объекта тарифов целиком
+    if (tiers && typeof tiers === 'object') {
+      saveAllTiers(tiers);
+      return NextResponse.json({ success: true, tiers: getAllTiers() });
+    }
 
     if (!tierId || !patch) {
       return NextResponse.json(
-        { success: false, error: 'Необходимо указать tierId и изменения patch' },
+        { success: false, error: 'Необходимо указать tierId и изменения patch или полный объект tiers' },
         { status: 400 }
       );
     }

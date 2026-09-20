@@ -34,7 +34,8 @@ import { WhiteLabelSettingsModal } from '@/components/WhiteLabelSettingsModal';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
 import { DirectConnectCard } from '@/components/DirectConnectCard';
-import { UserTier, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
+import { UserTier } from '@/lib/billing/tiers';
+import { useTiers } from '@/lib/billing/use-tiers';
 import { Logo } from '@/components/Logo';
 
 interface AuditHistoryItem {
@@ -51,6 +52,7 @@ interface AuditHistoryItem {
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isTester, isAdmin, setTier, logout } = useUser();
+  const { getTier } = useTiers();
   const [history, setHistory] = useState<AuditHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -183,7 +185,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Реестр проверок Яндекс.Директ</h1>
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-                    {getTierConfig(user?.tier).name}
+                    {getTier(user?.tier).name}
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500">

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@/lib/auth/user-context';
-import { UserTier, TIER_LIST, getTierConfig } from '@/lib/billing/tiers';
+import { UserTier } from '@/lib/billing/tiers';
+import { useTiers } from '@/lib/billing/use-tiers';
 import { Check, X, Shield, Sparkles, CreditCard, ArrowRight, Zap, Building2, KeyRound } from 'lucide-react';
 import { trackProductEvent } from '@/lib/telemetry/tracker';
 
@@ -14,6 +15,7 @@ interface PricingModalProps {
 
 export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: PricingModalProps) {
   const { user, setTier } = useUser();
+  const { tierList, getTier } = useTiers();
   const [activePlan, setActivePlan] = useState<UserTier>(initialTier || user?.tier || 'PRO');
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
     setIsProcessing(true);
     trackProductEvent('pricing_tier_clicked', {
       userId: user?.id,
-      metadata: { tier, price: getTierConfig(tier).price },
+      metadata: { tier, price: getTier(tier).price },
     });
 
     try {
@@ -113,7 +115,7 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
 
         {/* Сетка тарифов (5 планов) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
-          {TIER_LIST.map((plan) => {
+          {tierList.map((plan) => {
             const isCurrent = user?.tier === plan.id;
             return (
               <div

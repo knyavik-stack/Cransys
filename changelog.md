@@ -2,6 +2,15 @@
 
 Все изменения проекта документируются в данном файле.
 
+## [2.2.0] — 2026-09-20
+### Восстановление работы dev-сервера и оптимизация хука `useTiers` (`lib/billing/use-tiers.ts`)
+- **Устранение ошибки ESLint `react-hooks/set-state-in-effect`:**
+  - Устранен синхронный вызов `setState` внутри тела `useEffect` в `lib/billing/use-tiers.ts`.
+  - Загрузка динамических тарифов переведена на безопасный асинхронный промис с флагом отмены `ignore`.
+- **Восстановление и перезапуск dev-сервера:**
+  - Очищены зависшие фоновые задачи, выполнен успешный перезапуск dev-сервера через `restart_dev_server`.
+  - Линтер `eslint .` завершен со статусом **0 ошибок**.
+
 ## [2.1.9] — 2026-09-20
 ### Универсальные интерфейсы нотификаций (`lib/notifications/admin-notify.ts`)
 - Добавлены интерфейсы `AuditNotifyDetails`, `PaymentNotifyDetails`, `RegistrationNotifyDetails` со строгой поддержкой всех свойств (`sourceType`, `totalSpend`, `totalSpendRub`, `totalLoss`, `totalLossRub`, `score`, `campaignCount`) и открытой сигнатурой `[key: string]: any`.

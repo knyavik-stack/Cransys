@@ -78,6 +78,42 @@ export interface CookieConsentStats {
   lastUpdated: string;
 }
 
+export interface YookassaSettings {
+  enabled: boolean;
+  shopId: string;
+  secretKey: string;
+  isTestMode: boolean;
+  receiptEnabled: boolean;
+  taxSystemCode: number; // 1: ОСН, 2: УСН доход (6%), 3: УСН доход-расход (15%), 4: ЕНВД, 5: ЕСХН, 6: ПСН
+  vatCode: number; // 1: Без НДС, 2: 0%, 3: 10%, 4: 20%, 5: 10/110, 6: 20/120
+  autoCapture: boolean;
+  descriptionTemplate: string;
+}
+
+export interface NotificationsSettings {
+  telegram: {
+    enabled: boolean;
+    botToken: string;
+    chatId: string;
+    notifyOnPayment: boolean;
+    notifyOnRegistration: boolean;
+    notifyOnAudit: boolean;
+    notifyOnSystemError: boolean;
+  };
+  email: {
+    enabled: boolean;
+    alertEmail: string;
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPass: string;
+    smtpFrom: string;
+    notifyOnPayment: boolean;
+    notifyOnRegistration: boolean;
+    notifyOnAudit: boolean;
+  };
+}
+
 export interface SiteSettings {
   supportEmail: string;
   companyName: string;
@@ -87,6 +123,8 @@ export interface SiteSettings {
   analytics: AnalyticsSettings;
   customScripts: CustomScriptSettings;
   cookieBanner: CookieBannerSettings;
+  yookassa: YookassaSettings;
+  notifications: NotificationsSettings;
   bannerAnnouncement?: {
     enabled: boolean;
     text: string;
@@ -97,6 +135,40 @@ export interface SiteSettings {
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   supportEmail: 'cransys@yandex.ru',
   companyName: 'Cransys Analytics',
+  yookassa: {
+    enabled: true,
+    shopId: process.env.YOOKASSA_SHOP_ID || '',
+    secretKey: process.env.YOOKASSA_SECRET_KEY || '',
+    isTestMode: true,
+    receiptEnabled: true,
+    taxSystemCode: 2, // УСН Доходы
+    vatCode: 1, // Без НДС
+    autoCapture: true,
+    descriptionTemplate: 'Оплата тарифа {{tierName}} в сервисе Cransys',
+  },
+  notifications: {
+    telegram: {
+      enabled: true,
+      botToken: process.env.TELEGRAM_ADMIN_BOT_TOKEN || '',
+      chatId: process.env.TELEGRAM_ADMIN_CHAT_ID || '',
+      notifyOnPayment: true,
+      notifyOnRegistration: true,
+      notifyOnAudit: true,
+      notifyOnSystemError: true,
+    },
+    email: {
+      enabled: true,
+      alertEmail: process.env.ADMIN_ALERT_EMAIL || 'cransys@yandex.ru',
+      smtpHost: process.env.SMTP_HOST || 'smtp.yandex.ru',
+      smtpPort: Number(process.env.SMTP_PORT) || 465,
+      smtpUser: process.env.SMTP_USER || 'cransys@yandex.ru',
+      smtpPass: process.env.SMTP_PASS || '',
+      smtpFrom: process.env.SMTP_FROM || 'Cransys <cransys@yandex.ru>',
+      notifyOnPayment: true,
+      notifyOnRegistration: true,
+      notifyOnAudit: false,
+    },
+  },
   cookieBanner: {
     enabled: true,
     title: 'Управление файлами cookie и конфиденциальность',
