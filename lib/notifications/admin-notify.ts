@@ -89,6 +89,7 @@ export async function notifyAdminEvent(payload: AdminAlertPayload): Promise<void
 export async function notifyAuditCompleted(details: {
   reportId?: string;
   userEmail?: string;
+  email?: string;
   campaignCount?: number;
   score?: number;
   wasteRub?: number;
@@ -97,7 +98,7 @@ export async function notifyAuditCompleted(details: {
   await notifyAdminEvent({
     type: 'AUDIT',
     title: details.isDemo ? 'Демо-аудит кампании' : 'Аудит рекламных кампаний',
-    userEmail: details.userEmail,
+    userEmail: details.userEmail || details.email,
     details: {
       'ID отчета': details.reportId,
       'Кампаний проверено': details.campaignCount,
@@ -110,17 +111,20 @@ export async function notifyAuditCompleted(details: {
 
 export async function notifyPaymentSuccess(details: {
   amountRub: number;
-  tierName: string;
+  tierName?: string;
+  tier?: string;
   userEmail?: string;
+  email?: string;
   paymentId?: string;
 }): Promise<void> {
+  const name = details.tierName || details.tier || 'Тариф';
   await notifyAdminEvent({
     type: 'PAYMENT',
-    title: `Оплата тарифа ${details.tierName}`,
-    userEmail: details.userEmail,
+    title: `Оплата тарифа ${name}`,
+    userEmail: details.userEmail || details.email,
     amountRub: details.amountRub,
     details: {
-      'Тариф': details.tierName,
+      'Тариф': name,
       'Сумма': `${details.amountRub.toLocaleString('ru-RU')} ₽`,
       'ID платежа': details.paymentId,
     },
@@ -128,14 +132,15 @@ export async function notifyPaymentSuccess(details: {
 }
 
 export async function notifyNewUserRegistration(details: {
-  userEmail: string;
+  userEmail?: string;
+  email?: string;
   name?: string;
   tier?: string;
 }): Promise<void> {
   await notifyAdminEvent({
     type: 'REGISTRATION',
     title: 'Регистрация пользователя',
-    userEmail: details.userEmail,
+    userEmail: details.userEmail || details.email,
     details: {
       'Имя': details.name || 'Не указано',
       'Тариф': details.tier || 'EXPRESS_SINGLE',

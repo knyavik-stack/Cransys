@@ -2,6 +2,11 @@
 
 Все изменения проекта документируются в данном файле.
 
+## [2.1.5] — 2026-09-20
+### Расширение сигнатур нотификаций (`lib/notifications/admin-notify.ts`)
+- Добавлена гибкая поддержка параметров `email` / `userEmail` и `tier` / `tierName` во все функции отправки уведомлений (`notifyNewRegistration`, `notifyPaymentSuccess`, `notifyAuditCompleted`).
+- Проверена компиляция проекта через `tsc --noEmit` и ESLint (0 ошибок).
+
 ## [2.1.4] — 2026-09-20
 ### Добавление алиасов нотификаций (`lib/notifications/admin-notify.ts`)
 - **Экспорт алиасов функций оповещения:**
