@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Сохранение в базу данных Neon и Cloudflare R2 / локальное хранилище
+    // 4. Сохранение в базу данных Neon и облачное хранилище отчетов
     let savedJobId: string | null = null;
     const userIdHeader = req.headers.get('x-user-id') || undefined;
     const userEmailHeader = req.headers.get('x-user-email') || undefined;
@@ -100,35 +100,33 @@ export async function POST(req: NextRequest) {
           report,
           tier: 'EXPRESS_SINGLE',
         });
-
-        // Сохранение полного отчета в Cloudflare R2 / Local storage
-        if (savedJobId) {
-          await saveReportToStorage(savedJobId, report, {
-            userId: userIdHeader,
-            userEmail: userEmailHeader,
-            fileName,
-            score: report.overallScore,
-            totalLossRub: report.totalPotentialLossRub,
-            totalSpendRub: report.totalSpendRub,
-            tier: 'EXPRESS_SINGLE',
-          });
-        }
       } catch (dbErr) {
-        console.warn('Audit record save skipped:', dbErr);
+        console.warn('Audit record DB save skipped:', dbErr);
       }
 
-      // Уведомление Администратора
+      // Сохраняем полный JSON-отчет в Cloudflare R2 / Local storage
+      const reportIdentifier = savedJobId || `audit_${Date.now()}`;
+      try {
+        await saveReportToStorage(reportIdentifier, report, {
+          userId: userIdHeader,
+          userEmail: userEmailHeader,
+        });
+      } catch (storageErr) {
+        console.warn('Report storage save skipped:', storageErr);
+      }
+
+      // Оповещение администратора/собственника
       try {
         await notifyAuditCompleted({
+          reportId: reportIdentifier,
           userEmail: userEmailHeader,
-          sourceType: 'Файл выгрузки (Excel/CSV)',
-          totalSpend: report.totalSpendRub,
-          totalLoss: report.totalPotentialLossRub,
+          campaignCount: inputData.campaigns?.length || 1,
           score: report.overallScore,
-          fileName,
+          wasteRub: report.totalLossRub,
+          isDemo: false,
         });
       } catch (notifyErr) {
-        console.warn('Admin audit notification error:', notifyErr);
+        console.warn('Admin notification skipped:', notifyErr);
       }
     }
 
@@ -143,5 +141,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
-
-

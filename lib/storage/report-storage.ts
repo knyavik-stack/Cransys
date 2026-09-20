@@ -51,6 +51,9 @@ export async function saveAuditReport(
   };
 }
 
+// Alias для совместимости
+export const saveReportToStorage = saveAuditReport;
+
 export async function getAuditReport(reportId: string): Promise<Record<string, any> | null> {
   ensureLocalStorage();
   const filePath = path.join(LOCAL_STORAGE_DIR, `${reportId}.json`);
@@ -64,6 +67,9 @@ export async function getAuditReport(reportId: string): Promise<Record<string, a
   }
   return null;
 }
+
+// Alias для совместимости
+export const getReportFromStorage = getAuditReport;
 
 export async function getStorageStatus() {
   const isR2 = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID);

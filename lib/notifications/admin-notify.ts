@@ -51,7 +51,7 @@ export async function sendEmailAlert(subject: string, htmlContent: string): Prom
     return { success: false, error: 'SMTP credentials not configured' };
   }
 
-  // Заглушка/отправка через стандартный fetch/transport
+  // Заглушка/отправка через стандартный transport
   return { success: true };
 }
 
@@ -84,4 +84,61 @@ export async function notifyAdminEvent(payload: AdminAlertPayload): Promise<void
   }
 
   await sendTelegramAlert(text);
+}
+
+export async function notifyAuditCompleted(details: {
+  reportId?: string;
+  userEmail?: string;
+  campaignCount?: number;
+  score?: number;
+  wasteRub?: number;
+  isDemo?: boolean;
+}): Promise<void> {
+  await notifyAdminEvent({
+    type: 'AUDIT',
+    title: details.isDemo ? 'Демо-аудит кампании' : 'Аудит рекламных кампаний',
+    userEmail: details.userEmail,
+    details: {
+      'ID отчета': details.reportId,
+      'Кампаний проверено': details.campaignCount,
+      'Оценка качества': details.score ? `${details.score} / 100` : undefined,
+      'Выявленный слив': details.wasteRub ? `${details.wasteRub.toLocaleString('ru-RU')} ₽` : undefined,
+      'Режим': details.isDemo ? 'Демо' : 'Боевой',
+    },
+  });
+}
+
+export async function notifyPaymentSuccess(details: {
+  amountRub: number;
+  tierName: string;
+  userEmail?: string;
+  paymentId?: string;
+}): Promise<void> {
+  await notifyAdminEvent({
+    type: 'PAYMENT',
+    title: `Оплата тарифа ${details.tierName}`,
+    userEmail: details.userEmail,
+    amountRub: details.amountRub,
+    details: {
+      'Тариф': details.tierName,
+      'Сумма': `${details.amountRub.toLocaleString('ru-RU')} ₽`,
+      'ID платежа': details.paymentId,
+    },
+  });
+}
+
+export async function notifyNewUserRegistration(details: {
+  userEmail: string;
+  name?: string;
+  tier?: string;
+}): Promise<void> {
+  await notifyAdminEvent({
+    type: 'REGISTRATION',
+    title: 'Регистрация пользователя',
+    userEmail: details.userEmail,
+    details: {
+      'Имя': details.name || 'Не указано',
+      'Тариф': details.tier || 'EXPRESS_SINGLE',
+    },
+  });
 }
