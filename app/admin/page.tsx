@@ -75,6 +75,7 @@ import { useUser } from '@/lib/auth/user-context';
 import { UserTier, TierDefinition, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
 import { DEFAULT_SITE_SETTINGS, SiteSettings, SocialLinkItem, CookieConsentStats, CookieConsentRecord } from '@/lib/settings/types';
 import { FunnelStatsResponse } from '@/lib/telemetry/types';
+import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
 
 export interface AdminUserRecord {
   id: string;
@@ -949,86 +950,9 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* TAB 1: Сводная аналитика */}
+        {/* TAB 1: Сводная аналитика для Собственника и Администратора (AdminLTE style + Live Data) */}
         {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* График динамики регистраций и оплат */}
-              <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Динамика активности за 7 дней</h3>
-                    <p className="text-xs text-slate-400">Демо-проверки, регистрации и платные заказы</p>
-                  </div>
-                  <span className="text-[11px] text-blue-400 bg-blue-500/10 px-2 py-1 rounded-md border border-blue-500/20">
-                    Live Telemetry
-                  </span>
-                </div>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={GUEST_ANALYTICS_DATA}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-                      <XAxis dataKey="day" stroke="#64748B" fontSize={11} />
-                      <YAxis stroke="#64748B" fontSize={11} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '12px', color: '#fff' }}
-                      />
-                      <Legend />
-                      <Line type="monotone" dataKey="demoAudits" name="Демо-аудиты" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="signUps" name="Регистрации" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="purchases" name="Оплаты тарифов" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Распределение по тарифам */}
-              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-white mb-1">Распределение тарифов</h3>
-                  <p className="text-xs text-slate-400 mb-4">Доли пользователей по тарифным планам</p>
-                  <div className="h-44 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={tierDistributionData}
-                          dataKey="count"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={65}
-                          innerRadius={35}
-                          paddingAngle={3}
-                        >
-                          {tierDistributionData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '12px' }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 pt-3 border-t border-slate-800">
-                  {tierDistributionData.map((t) => (
-                    <div key={t.tierKey} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-                        <span className="text-slate-300">{t.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-400 font-mono">{t.count} чел.</span>
-                        <span className="font-bold text-white font-mono">{t.revenue.toLocaleString('ru-RU')} ₽</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <AnalyticsDashboard onShowToast={(msg) => showNotification(msg)} />
         )}
 
         {/* TAB 2: Управление пользователями */}

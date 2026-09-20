@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { UserTier, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
 import { findUserByEmail, findUserById, updateUser } from '@/lib/db/users-store';
 import { recordTelemetryEvent } from '@/lib/db/telemetry-store';
+import { notifyNewPayment } from '@/lib/notifications/admin-notify';
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,21 +31,22 @@ export async function POST(req: NextRequest) {
       });
     } catch {}
 
+    let targetUser = null;
     // Обновляем статус пользователя в хранилище при оплате
     if (userId || userEmail) {
-      const targetUser = userId ? await findUserById(userId) : (userEmail ? await findUserByEmail(userEmail) : null);
+      targetUser = userId ? await findUserById(userId) : (userEmail ? await findUserByEmail(userEmail) : null);
       if (targetUser) {
         await updateUser(targetUser.id, {
           tier: normalizedTier,
           hasPaid: true,
-          reportsLimit: tierConfig.reportsLimit,
+          reportsLimit: Math.max(targetUser.reportsLimit, tierConfig.reportsLimit),
           revenue: (targetUser.revenue || 0) + amount,
           lastActive: new Date().toISOString().split('T')[0],
         });
       }
     }
 
-    // Логика интеграции с ЮKassa (или Sandbox)
+    // Логика интеграции с ЮKassa (с чеком по 54-ФЗ)
     const yookassaShopId = process.env.YOOKASSA_SHOP_ID;
     const yookassaSecretKey = process.env.YOOKASSA_SECRET_KEY;
 
@@ -71,6 +73,30 @@ export async function POST(req: NextRequest) {
               return_url: `${req.nextUrl.origin}/dashboard?payment=success&tier=${normalizedTier}`,
             },
             description: `Оплата тарифа ${tierConfig.name} в сервисе Cransys`,
+            metadata: {
+              userId: targetUser?.id || userId || '',
+              userEmail: targetUser?.email || userEmail || '',
+              tier: normalizedTier,
+            },
+            // Фискализация по 54-ФЗ (Онлайн-касса ЮKassa)
+            receipt: {
+              customer: {
+                email: targetUser?.email || userEmail || 'client@cransys.ru',
+              },
+              items: [
+                {
+                  description: `Доступ к сервису Cransys: Тариф ${tierConfig.name}`,
+                  quantity: '1.00',
+                  amount: {
+                    value: amount.toFixed(2),
+                    currency: 'RUB',
+                  },
+                  vat_code: 1, // Без НДС (УСН)
+                  payment_mode: 'full_payment',
+                  payment_subject: 'service',
+                },
+              ],
+            },
           }),
         });
 
@@ -81,6 +107,19 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.warn('Yookassa API call error, fallback to sandbox:', err);
       }
+    }
+
+    // Оповещение Администратора о покупке
+    try {
+      await notifyNewPayment({
+        amount,
+        tierName: tierConfig.name,
+        userEmail: targetUser?.email || userEmail || 'Гость',
+        userName: targetUser?.name || 'Пользователь',
+        paymentId,
+      });
+    } catch (notifyErr) {
+      console.warn('Notify payment error:', notifyErr);
     }
 
     return NextResponse.json({

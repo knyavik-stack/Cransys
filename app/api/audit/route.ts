@@ -6,6 +6,8 @@ import { parseDirectExcel } from '@/lib/parser/excel-parser';
 import { generateAiDirectAudit } from '@/lib/ai/direct-analyst';
 import { analyzeSearchQueriesAi } from '@/lib/ai/search-query-analyst';
 import { saveAuditRecord } from '@/lib/db/audit-store';
+import { saveReportToStorage } from '@/lib/storage/report-storage';
+import { notifyAuditCompleted } from '@/lib/notifications/admin-notify';
 
 export async function POST(req: NextRequest) {
   try {
@@ -84,13 +86,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Сохранение в базу данных Neon и локальное хранилище (ТОЛЬКО для не-демо отчетов)
+    // 4. Сохранение в базу данных Neon и Cloudflare R2 / локальное хранилище
     let savedJobId: string | null = null;
+    const userIdHeader = req.headers.get('x-user-id') || undefined;
+    const userEmailHeader = req.headers.get('x-user-email') || undefined;
+
     if (!isDemoRequest) {
       try {
-        const userIdHeader = req.headers.get('x-user-id');
-        const userEmailHeader = req.headers.get('x-user-email');
-
         savedJobId = await saveAuditRecord({
           userId: userIdHeader || null,
           userEmail: userEmailHeader || null,
@@ -98,8 +100,35 @@ export async function POST(req: NextRequest) {
           report,
           tier: 'EXPRESS_SINGLE',
         });
+
+        // Сохранение полного отчета в Cloudflare R2 / Local storage
+        if (savedJobId) {
+          await saveReportToStorage(savedJobId, report, {
+            userId: userIdHeader,
+            userEmail: userEmailHeader,
+            fileName,
+            score: report.overallScore,
+            totalLossRub: report.totalPotentialLossRub,
+            totalSpendRub: report.totalSpendRub,
+            tier: 'EXPRESS_SINGLE',
+          });
+        }
       } catch (dbErr) {
         console.warn('Audit record save skipped:', dbErr);
+      }
+
+      // Уведомление Администратора
+      try {
+        await notifyAuditCompleted({
+          userEmail: userEmailHeader,
+          sourceType: 'Файл выгрузки (Excel/CSV)',
+          totalSpend: report.totalSpendRub,
+          totalLoss: report.totalPotentialLossRub,
+          score: report.overallScore,
+          fileName,
+        });
+      } catch (notifyErr) {
+        console.warn('Admin audit notification error:', notifyErr);
       }
     }
 

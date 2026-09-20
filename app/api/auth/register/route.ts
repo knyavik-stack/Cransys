@@ -4,6 +4,7 @@ import { checkPasswordSecurity } from '@/lib/auth/password-validator';
 import { UserTier } from '@/lib/billing/tiers';
 import { sendVerificationEmail } from '@/lib/email/mailer';
 import { recordTelemetryEvent } from '@/lib/db/telemetry-store';
+import { notifyNewRegistration } from '@/lib/notifications/admin-notify';
 
 export async function POST(req: NextRequest) {
   try {
@@ -77,6 +78,17 @@ export async function POST(req: NextRequest) {
         userAgent: req.headers.get('user-agent'),
       });
     } catch {}
+
+    // Оповещение Администратора о новой регистрации
+    try {
+      await notifyNewRegistration({
+        email: newUser.email,
+        name: newUser.name,
+        tier: newUser.tier,
+      });
+    } catch (notifyErr) {
+      console.warn('Admin registration notification error:', notifyErr);
+    }
 
     return NextResponse.json({
       success: true,

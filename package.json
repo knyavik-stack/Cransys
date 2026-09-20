@@ -11,6 +11,8 @@
     "sync:vercel": "node scripts/sync-env-to-vercel.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1136.0",
+    "@aws-sdk/s3-request-presigner": "^3.1136.0",
     "@google/genai": "^2.4.0",
     "@hookform/resolvers": "^5.2.1",
     "@neondatabase/serverless": "^1.1.0",

@@ -3,6 +3,8 @@ import { getDirectConnectionByUserId } from '@/lib/db/direct-connections-store';
 import { defaultAuditEngine } from '@/lib/audit/engine';
 import { saveAuditRecord } from '@/lib/db/audit-store';
 import { findUserById, updateUser } from '@/lib/db/users-store';
+import { saveReportToStorage } from '@/lib/storage/report-storage';
+import { notifyAuditCompleted } from '@/lib/notifications/admin-notify';
 
 export async function POST(req: NextRequest) {
   try {
@@ -186,7 +188,7 @@ export async function POST(req: NextRequest) {
     const selectedCount = auditData.campaigns.length;
     const fileName = `Яндекс.Директ (${effectiveLogin}) — ${selectedCount} ${selectedCount === 1 ? 'кампания' : 'кампаний'} (${periodDays} дн.)`;
 
-    // Персистентно сохраняем в базу данных
+    // Персистентно сохраняем в базу данных и хранилище R2
     const userTier = user?.tier || 'PRO';
     const auditId = await saveAuditRecord({
       userId,
@@ -195,6 +197,36 @@ export async function POST(req: NextRequest) {
       report,
       tier: userTier,
     });
+
+    if (auditId) {
+      try {
+        await saveReportToStorage(auditId, report, {
+          userId,
+          userEmail,
+          fileName,
+          score: report.overallScore,
+          totalLossRub: report.totalPotentialLossRub,
+          totalSpendRub: report.totalSpendRub,
+          tier: userTier,
+        });
+      } catch (stErr) {
+        console.warn('Direct audit storage save warning:', stErr);
+      }
+    }
+
+    // Оповещение Администратора
+    try {
+      await notifyAuditCompleted({
+        userEmail,
+        sourceType: `Яндекс.Директ API (${effectiveLogin})`,
+        totalSpend: report.totalSpendRub,
+        totalLoss: report.totalPotentialLossRub,
+        score: report.overallScore,
+        fileName,
+      });
+    } catch (notifErr) {
+      console.warn('Direct audit notification error:', notifErr);
+    }
 
     // Списываем 1 аудит из баланса проверок пользователя
     let updatedReportsUsed = user?.reportsUsed ?? 0;
