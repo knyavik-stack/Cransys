@@ -142,3 +142,10 @@ export async function notifyNewUserRegistration(details: {
     },
   });
 }
+
+// Алиасы для обратной совместимости и различных сценариев импорта
+export const notifyNewRegistration = notifyNewUserRegistration;
+export const notifyRegistration = notifyNewUserRegistration;
+export const notifyPayment = notifyPaymentSuccess;
+export const notifyAudit = notifyAuditCompleted;
+

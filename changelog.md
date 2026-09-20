@@ -2,6 +2,14 @@
 
 Все изменения проекта документируются в данном файле.
 
+## [2.1.4] — 2026-09-20
+### Добавление алиасов нотификаций (`lib/notifications/admin-notify.ts`)
+- **Экспорт алиасов функций оповещения:**
+  - `notifyNewRegistration` / `notifyRegistration` (алиасы для `notifyNewUserRegistration`).
+  - `notifyPayment` (алиас для `notifyPaymentSuccess`).
+  - `notifyAudit` (алиас для `notifyAuditCompleted`).
+- Проверена строгая компиляция `tsc --noEmit` и линтер (0 ошибок).
+
 ## [2.1.3] — 2026-09-20
 ### Синхронизация экспортов хранилища и нотификаций аудита
 - **Экспорт функций `saveReportToStorage` и `getReportFromStorage` (`lib/storage/report-storage.ts`):**
