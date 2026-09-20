@@ -1,17 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getStorageDiagnostics } from '@/lib/storage/report-storage';
+import { NextResponse } from 'next/server';
+import { getStorageStatus } from '@/lib/storage/report-storage';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const diag = await getStorageDiagnostics();
+    const status = await getStorageStatus();
     return NextResponse.json({
       success: true,
-      storage: diag,
+      storage: status,
     });
-  } catch (error) {
-    console.error('Storage diagnostics error:', error);
+  } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: 'Ошибка диагностики хранилища отчетов' },
+      { success: false, error: error?.message || 'Failed to check storage status' },
       { status: 500 }
     );
   }

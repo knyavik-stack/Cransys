@@ -175,6 +175,41 @@ export async function saveDirectConnection(conn: Omit<YandexDirectConnection, 'i
 }
 
 /**
+ * Получение всех активных подключений пользователей в системе (для админки и аналитики)
+ */
+export async function getAllDirectConnections(): Promise<YandexDirectConnection[]> {
+  const sql = getDb();
+  if (sql) {
+    try {
+      await ensureDatabaseReady();
+      const rows = await sql`
+        SELECT 
+          id,
+          user_id as "userId",
+          user_email as "userEmail",
+          access_token as "accessToken",
+          refresh_token as "refreshToken",
+          expires_in as "expiresIn",
+          login,
+          connected_at as "connectedAt",
+          last_sync_at as "lastSyncAt",
+          status
+        FROM public.yandex_connections
+        WHERE status = 'ACTIVE'
+        ORDER BY connected_at DESC;
+      `;
+      if (rows && rows.length > 0) {
+        return rows as YandexDirectConnection[];
+      }
+    } catch (e) {
+      console.warn('Error querying all Yandex connections for admin from DB:', e);
+    }
+  }
+
+  return memoryConnections.filter((c) => c.status === 'ACTIVE');
+}
+
+/**
  * Получение всех активных подключений пользователя (для мульти-аккаунтов в CORP / MAX)
  */
 export async function getAllDirectConnectionsForUser(userId: string): Promise<YandexDirectConnection[]> {

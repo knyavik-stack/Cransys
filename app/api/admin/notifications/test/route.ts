@@ -1,40 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendTelegramAdminNotification, sendAdminEmailNotification } from '@/lib/notifications/admin-notify';
+import { sendTelegramAlert, sendEmailAlert } from '@/lib/notifications/admin-notify';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const channel = body.channel || 'all'; // 'telegram' | 'email' | 'all'
+    const channel = body.channel || 'all';
 
-    const testTime = new Date().toLocaleString('ru-RU');
-    const results: Record<string, any> = {};
+    let telegramResult: { success: boolean; error?: string } = { success: false, error: 'Telegram не настроен' };
+    let emailResult: { success: boolean; error?: string } = { success: false, error: 'SMTP не настроен' };
 
     if (channel === 'telegram' || channel === 'all') {
-      const tgText = `🔔 <b>ТЕСТОВОЕ УВЕДОМЛЕНИЕ CRANSYS</b>\n\n` +
-        `✅ Telegram-бот успешно подключен и готов к отправке уведомлений об оплатах, регистрациях и аудитах.\n` +
-        `⏰ <b>Время проверки:</b> ${testTime}`;
-
-      results.telegram = await sendTelegramAdminNotification(tgText);
+      telegramResult = await sendTelegramAlert(
+        `🚀 <b>[CRANSYS ТЕСТ СВЯЗИ]</b>\nТестовое оповещение администратора отправлено успешно!`
+      );
     }
 
     if (channel === 'email' || channel === 'all') {
-      const emailHtml = `
-        <p>Это тестовое служебное уведомление для администратора Cransys.</p>
-        <p>Канал отправки Яндекс SMTP работает штатно.</p>
-      `;
-
-      results.email = await sendAdminEmailNotification('Тестовая проверка системы оповещений', emailHtml);
+      emailResult = await sendEmailAlert(
+        'Тест связи Cransys',
+        '<p>Тестовое оповещение администратора отправлено успешно.</p>'
+      );
     }
 
     return NextResponse.json({
       success: true,
-      results,
-      message: 'Тестовые уведомления отправлены',
+      telegram: telegramResult,
+      email: emailResult,
     });
-  } catch (error) {
-    console.error('Error sending test notification:', error);
+  } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: 'Ошибка при отправке тестовых уведомлений' },
+      { success: false, error: error?.message || 'Failed to send test alert' },
       { status: 500 }
     );
   }
