@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UserTier, TIER_CONFIGS } from '@/lib/billing/tiers';
+import { fetchAllTiersAsync } from '@/lib/db/tiers-store';
 import { findUserByEmail, findUserById, updateUser } from '@/lib/db/users-store';
 import { recordTelemetryEvent } from '@/lib/db/telemetry-store';
 import { notifyNewPayment } from '@/lib/notifications/admin-notify';
@@ -21,7 +22,11 @@ export async function POST(req: NextRequest) {
       const userEmail = metadata.userEmail;
       const requestedTier = metadata.tier as UserTier;
 
-      const tierConfig = (requestedTier && TIER_CONFIGS[requestedTier]) ? TIER_CONFIGS[requestedTier] : TIER_CONFIGS.PRO;
+      // Загружаем актуальные настройки тарифов из БД/хранилища (установленные в админке)
+      const allTiers = await fetchAllTiersAsync();
+      const tierConfig = (requestedTier && allTiers[requestedTier]) 
+        ? allTiers[requestedTier] 
+        : ((requestedTier && TIER_CONFIGS[requestedTier]) ? TIER_CONFIGS[requestedTier] : TIER_CONFIGS.PRO);
 
       // Обновляем пользователя
       if (userId || userEmail) {

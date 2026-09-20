@@ -379,8 +379,9 @@ export default function AdminPage() {
     };
   }, [isAdmin, funnelPeriod]);
 
-  const handleSaveSettings = async (customMessage?: string) => {
+  const handleSaveSettings = async (customMessage?: string | React.MouseEvent) => {
     setIsSavingSettings(true);
+    const msg = typeof customMessage === 'string' ? customMessage : 'Настройки успешно сохранены!';
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
@@ -390,7 +391,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success && data.settings) {
         setSiteSettings(data.settings);
-        showNotification(customMessage || 'Настройки успешно сохранены!');
+        showNotification(msg);
       } else {
         showNotification(data.error || 'Ошибка при сохранении настроек');
       }
@@ -400,6 +401,9 @@ export default function AdminPage() {
       setIsSavingSettings(false);
     }
   };
+
+  const handleSaveYookassa = () => handleSaveSettings('Настройки ЮKassa успешно сохранены в базе данных!');
+  const handleSaveNotifications = () => handleSaveSettings('Настройки оповещений (Telegram / SMTP) успешно сохранены!');
 
   const handleTestYookassa = async () => {
     setIsTestingYookassa(true);
@@ -1415,6 +1419,27 @@ export default function AdminPage() {
                             {config.hasWhiteLabel ? '✓ Включено' : '✕ Отключено'}
                           </span>
                         </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                          <span className="text-slate-400">База мусорных РСЯ:</span>
+                          <span className={config.hasRsyaBlacklist ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
+                            {config.hasRsyaBlacklist ? '✓ 10 000+ площадок' : '✕ Отключено'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                          <span className="text-slate-400">Корп. автоматизация:</span>
+                          <span className={config.hasCorpAutomation ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
+                            {config.hasCorpAutomation ? '✓ Включено' : '✕ Отключено'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                          <span className="text-slate-400">Мульти-аккаунты:</span>
+                          <span className={config.hasMultiAccounts ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
+                            {config.hasMultiAccounts ? `✓ До ${config.maxConnectedAccounts || 5} шт.` : '✕ 1 аккаунт'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -2174,13 +2199,13 @@ export default function AdminPage() {
                     </label>
                     <input
                       type="text"
-                      value={siteSettings.notifications?.email?.fromAddress || ''}
+                      value={siteSettings.notifications?.email?.smtpFrom || ''}
                       onChange={(e) =>
                         setSiteSettings((prev) => ({
                           ...prev,
                           notifications: {
                             ...prev.notifications,
-                            email: { ...prev.notifications?.email, fromAddress: e.target.value },
+                            email: { ...prev.notifications?.email, smtpFrom: e.target.value },
                           },
                         }))
                       }

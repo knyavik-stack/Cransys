@@ -50,12 +50,12 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
       });
       const data = await res.json();
       if (data.success) {
+        const config = getTier(tier);
         trackProductEvent('payment_completed', {
           userId: user?.id,
-          metadata: { tier, amount: getTierConfig(tier).price },
+          metadata: { tier, amount: config.price },
         });
         setTier(tier);
-        const config = getTierConfig(tier);
         setSuccessMessage(`Тариф успешно активирован: ${config.name}`);
         setTimeout(() => {
           setSuccessMessage(null);
@@ -64,12 +64,12 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
         }, 1200);
       }
     } catch {
+      const config = getTier(tier);
       trackProductEvent('payment_completed', {
         userId: user?.id,
-        metadata: { tier, amount: getTierConfig(tier).price, fallback: true },
+        metadata: { tier, amount: config.price, fallback: true },
       });
       setTier(tier);
-      const config = getTierConfig(tier);
       setSuccessMessage(`Тариф ${config.name} активирован.`);
       setTimeout(() => {
         setSuccessMessage(null);
