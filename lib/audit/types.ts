@@ -66,6 +66,8 @@ export interface AuditReportData {
   totalSpendRub: number;
   totalConversions?: number;
   totalLossRub: number;
+  totalPotentialLossRub?: number;
+  totalWasteRub?: number;
   healthyBudgetRub: number;
   rules: RuleResult[];
   campaignsCount: number;

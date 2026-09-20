@@ -53,6 +53,8 @@ export class AuditEngine {
       totalSpendRub: data.totalSpendRub,
       totalConversions: data.totalConversions,
       totalLossRub: boundedLossRub,
+      totalPotentialLossRub: boundedLossRub,
+      totalWasteRub: boundedLossRub,
       healthyBudgetRub,
       rules: results,
       campaignsCount: data.campaigns.length,

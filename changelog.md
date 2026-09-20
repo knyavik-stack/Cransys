@@ -2,6 +2,12 @@
 
 Все изменения проекта документируются в данном файле.
 
+## [2.1.8] — 2026-09-20
+### Добавление полей потерь `totalPotentialLossRub` и `totalWasteRub` в `AuditReportData`
+- В интерфейс `AuditReportData` (`lib/audit/types.ts`) и движок `AuditEngine` (`lib/audit/engine.ts`) добавлены поля `totalPotentialLossRub` и `totalWasteRub`.
+- Обеспечена полная совместимость всех вызовов в `/app/api/direct/run-audit/route.ts` и `/app/api/audit/route.ts`.
+- Проверка `tsc --noEmit` и линтер пройдены с результатом 0 ошибок.
+
 ## [2.1.7] — 2026-09-20
 ### Расширение интерфейса метаданных хранилища (`lib/storage/report-storage.ts`)
 - Добавлен интерфейс `ReportStorageOptions` с поддержкой свойств `fileName`, `score`, `totalLossRub`, `totalSpendRub`, `tier`, `isDemo`.
