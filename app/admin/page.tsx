@@ -75,7 +75,7 @@ import { useUser } from '@/lib/auth/user-context';
 import { UserTier, TierDefinition, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
 import { DEFAULT_SITE_SETTINGS, SiteSettings, SocialLinkItem, CookieConsentStats, CookieConsentRecord } from '@/lib/settings/types';
 import { FunnelStatsResponse } from '@/lib/telemetry/types';
-import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
+import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 
 export interface AdminUserRecord {
   id: string;
@@ -268,7 +268,7 @@ export default function AdminPage() {
     }
   };
 
-  const fetchFunnelStats = async (period: 'today' | '7d' | '30d' | 'all' = funnelPeriod) => {
+  const fetchFunnelStats = async (period: 'today' | '7d' | '30d' | '90d' | 'all' = funnelPeriod) => {
     setIsLoadingFunnel(true);
     try {
       const res = await fetch(`/api/admin/funnel?period=${period}`);
@@ -952,7 +952,7 @@ export default function AdminPage() {
 
         {/* TAB 1: Сводная аналитика для Собственника и Администратора (AdminLTE style + Live Data) */}
         {activeTab === 'analytics' && (
-          <AnalyticsDashboard onShowToast={(msg) => showNotification(msg)} />
+          <AnalyticsDashboard onShowToast={(msg: string) => showNotification(msg)} />
         )}
 
         {/* TAB 2: Управление пользователями */}
