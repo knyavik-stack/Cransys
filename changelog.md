@@ -2,6 +2,12 @@
 
 Все изменения проекта документируются в данном файле.
 
+## [2.1.9] — 2026-09-20
+### Универсальные интерфейсы нотификаций (`lib/notifications/admin-notify.ts`)
+- Добавлены интерфейсы `AuditNotifyDetails`, `PaymentNotifyDetails`, `RegistrationNotifyDetails` со строгой поддержкой всех свойств (`sourceType`, `totalSpend`, `totalSpendRub`, `totalLoss`, `totalLossRub`, `score`, `campaignCount`) и открытой сигнатурой `[key: string]: any`.
+- Интегрировано автоматическое сохранение в R2 и отправка телеметрии в роуте прямого API-аудита `/app/api/direct/run-audit/route.ts`.
+- Проверка `tsc --noEmit` и ESLint завершены с 0 ошибок.
+
 ## [2.1.8] — 2026-09-20
 ### Добавление полей потерь `totalPotentialLossRub` и `totalWasteRub` в `AuditReportData`
 - В интерфейс `AuditReportData` (`lib/audit/types.ts`) и движок `AuditEngine` (`lib/audit/engine.ts`) добавлены поля `totalPotentialLossRub` и `totalWasteRub`.

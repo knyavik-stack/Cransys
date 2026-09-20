@@ -86,37 +86,61 @@ export async function notifyAdminEvent(payload: AdminAlertPayload): Promise<void
   await sendTelegramAlert(text);
 }
 
-export async function notifyAuditCompleted(details: {
+export interface AuditNotifyDetails {
   reportId?: string;
   userEmail?: string;
   email?: string;
   campaignCount?: number;
   score?: number;
   wasteRub?: number;
+  totalLoss?: number;
+  totalLossRub?: number;
+  totalSpend?: number;
+  totalSpendRub?: number;
+  sourceType?: string;
   isDemo?: boolean;
-}): Promise<void> {
-  await notifyAdminEvent({
-    type: 'AUDIT',
-    title: details.isDemo ? 'Демо-аудит кампании' : 'Аудит рекламных кампаний',
-    userEmail: details.userEmail || details.email,
-    details: {
-      'ID отчета': details.reportId,
-      'Кампаний проверено': details.campaignCount,
-      'Оценка качества': details.score ? `${details.score} / 100` : undefined,
-      'Выявленный слив': details.wasteRub ? `${details.wasteRub.toLocaleString('ru-RU')} ₽` : undefined,
-      'Режим': details.isDemo ? 'Демо' : 'Боевой',
-    },
-  });
+  [key: string]: any;
 }
 
-export async function notifyPaymentSuccess(details: {
+export interface PaymentNotifyDetails {
   amountRub: number;
   tierName?: string;
   tier?: string;
   userEmail?: string;
   email?: string;
   paymentId?: string;
-}): Promise<void> {
+  [key: string]: any;
+}
+
+export interface RegistrationNotifyDetails {
+  userEmail?: string;
+  email?: string;
+  name?: string;
+  tier?: string;
+  [key: string]: any;
+}
+
+export async function notifyAuditCompleted(details: AuditNotifyDetails): Promise<void> {
+  const loss = details.wasteRub ?? details.totalLoss ?? details.totalLossRub;
+  const spend = details.totalSpend ?? details.totalSpendRub;
+
+  await notifyAdminEvent({
+    type: 'AUDIT',
+    title: details.isDemo ? 'Демо-аудит кампании' : 'Аудит рекламных кампаний',
+    userEmail: details.userEmail || details.email,
+    details: {
+      'ID отчета': details.reportId,
+      'Источник': details.sourceType,
+      'Кампаний проверено': details.campaignCount,
+      'Расход': spend ? `${spend.toLocaleString('ru-RU')} ₽` : undefined,
+      'Оценка качества': details.score ? `${details.score} / 100` : undefined,
+      'Выявленный слив': loss ? `${loss.toLocaleString('ru-RU')} ₽` : undefined,
+      'Режим': details.isDemo ? 'Демо' : 'Боевой',
+    },
+  });
+}
+
+export async function notifyPaymentSuccess(details: PaymentNotifyDetails): Promise<void> {
   const name = details.tierName || details.tier || 'Тариф';
   await notifyAdminEvent({
     type: 'PAYMENT',
@@ -131,12 +155,7 @@ export async function notifyPaymentSuccess(details: {
   });
 }
 
-export async function notifyNewUserRegistration(details: {
-  userEmail?: string;
-  email?: string;
-  name?: string;
-  tier?: string;
-}): Promise<void> {
+export async function notifyNewUserRegistration(details: RegistrationNotifyDetails): Promise<void> {
   await notifyAdminEvent({
     type: 'REGISTRATION',
     title: 'Регистрация пользователя',

@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
     const selectedCount = auditData.campaigns.length;
     const fileName = `Яндекс.Директ (${effectiveLogin}) — ${selectedCount} ${selectedCount === 1 ? 'кампания' : 'кампаний'} (${periodDays} дн.)`;
 
-    // Персистентно сохраняем в базу данных и хранилище R2
+    // Персистентно сохраняем в базу данных
     const userTier = user?.tier || 'PRO';
     const auditId = await saveAuditRecord({
       userId,
@@ -198,34 +198,36 @@ export async function POST(req: NextRequest) {
       tier: userTier,
     });
 
-    if (auditId) {
-      try {
-        await saveReportToStorage(auditId, report, {
-          userId,
-          userEmail,
-          fileName,
-          score: report.overallScore,
-          totalLossRub: report.totalPotentialLossRub,
-          totalSpendRub: report.totalSpendRub,
-          tier: userTier,
-        });
-      } catch (stErr) {
-        console.warn('Direct audit storage save warning:', stErr);
-      }
+    // Сохраняем в Cloudflare R2 / локальное хранилище
+    const reportIdentifier = auditId || `audit_${Date.now()}`;
+    try {
+      await saveReportToStorage(reportIdentifier, report, {
+        userId,
+        userEmail,
+        fileName,
+        score: report.overallScore,
+        totalLossRub: report.totalLossRub,
+        totalSpendRub: report.totalSpendRub,
+        tier: userTier,
+      });
+    } catch (storageErr) {
+      console.warn('Direct audit storage save skipped:', storageErr);
     }
 
-    // Оповещение Администратора
+    // Оповещение администратора/собственника
     try {
       await notifyAuditCompleted({
+        reportId: reportIdentifier,
         userEmail,
         sourceType: `Яндекс.Директ API (${effectiveLogin})`,
-        totalSpend: report.totalSpendRub,
-        totalLoss: report.totalPotentialLossRub,
+        campaignCount: selectedCount,
         score: report.overallScore,
-        fileName,
+        totalSpendRub: report.totalSpendRub,
+        totalLossRub: report.totalLossRub,
+        isDemo: false,
       });
-    } catch (notifErr) {
-      console.warn('Direct audit notification error:', notifErr);
+    } catch (notifyErr) {
+      console.warn('Direct audit notification skipped:', notifyErr);
     }
 
     // Списываем 1 аудит из баланса проверок пользователя
