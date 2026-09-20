@@ -1,6 +1,18 @@
 import fs from 'fs';
 import path from 'path';
 
+export interface ReportStorageOptions {
+  userId?: string;
+  userEmail?: string;
+  fileName?: string;
+  score?: number;
+  totalLossRub?: number;
+  totalSpendRub?: number;
+  tier?: string;
+  isDemo?: boolean;
+  [key: string]: any;
+}
+
 export interface StoredReportMeta {
   reportId: string;
   userId?: string;
@@ -26,7 +38,7 @@ function ensureLocalStorage() {
 export async function saveAuditReport(
   reportId: string,
   reportData: Record<string, any>,
-  meta?: { userId?: string; userEmail?: string }
+  meta?: ReportStorageOptions
 ): Promise<StoredReportMeta> {
   const isR2 = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
 
@@ -44,7 +56,7 @@ export async function saveAuditReport(
     reportId,
     userId: meta?.userId,
     userEmail: meta?.userEmail,
-    fileName: `${reportId}.json`,
+    fileName: meta?.fileName || `${reportId}.json`,
     sizeBytes: Buffer.byteLength(content),
     uploadedAt: new Date().toISOString(),
     provider: isR2 ? 'r2' : 'local',

@@ -2,6 +2,12 @@
 
 Все изменения проекта документируются в данном файле.
 
+## [2.1.7] — 2026-09-20
+### Расширение интерфейса метаданных хранилища (`lib/storage/report-storage.ts`)
+- Добавлен интерфейс `ReportStorageOptions` с поддержкой свойств `fileName`, `score`, `totalLossRub`, `totalSpendRub`, `tier`, `isDemo`.
+- Обновлена функция `saveAuditReport` / `saveReportToStorage` для приема расширенных метаданных аудита.
+- Полная проверка компиляции через `tsc --noEmit` и ESLint (0 ошибок).
+
 ## [2.1.6] — 2026-09-20
 ### Добавление алиаса `notifyNewPayment` и интеграция обработчика ЮKassa Webhooks
 - Экспортирован алиас `notifyNewPayment` в `lib/notifications/admin-notify.ts`.
