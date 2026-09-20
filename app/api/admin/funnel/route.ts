@@ -5,8 +5,8 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const periodParam = searchParams.get('period') || '7d';
-    const period = ['today', '7d', '30d', 'all'].includes(periodParam)
-      ? (periodParam as 'today' | '7d' | '30d' | 'all')
+    const period = ['today', '7d', '30d', '90d', 'all'].includes(periodParam)
+      ? (periodParam as 'today' | '7d' | '30d' | '90d' | 'all')
       : '7d';
 
     const stats = await calculateFunnelStats(period);

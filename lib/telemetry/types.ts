@@ -39,7 +39,7 @@ export interface FunnelStepData {
 }
 
 export interface FunnelStatsResponse {
-  period: 'today' | '7d' | '30d' | 'all';
+  period: 'today' | '7d' | '30d' | '90d' | 'all';
   totalVisitors: number;
   steps: FunnelStepData[];
   utmSources: Array<{ source: string; visitors: number; audits: number; signups: number; payments: number; conversionRate: number }>;

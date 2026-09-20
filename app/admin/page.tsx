@@ -96,24 +96,6 @@ export interface AdminUserRecord {
   emailVerified?: boolean;
 }
 
-const GUEST_ANALYTICS_DATA = [
-  { day: '09.09', demoAudits: 42, signUps: 8, purchases: 3 },
-  { day: '10.09', demoAudits: 58, signUps: 12, purchases: 5 },
-  { day: '11.09', demoAudits: 65, signUps: 15, purchases: 7 },
-  { day: '12.09', demoAudits: 89, signUps: 21, purchases: 9 },
-  { day: '13.09', demoAudits: 110, signUps: 28, purchases: 14 },
-  { day: '14.09', demoAudits: 134, signUps: 36, purchases: 18 },
-  { day: '15.09', demoAudits: 156, signUps: 41, purchases: 22 },
-];
-
-const DROP_OFF_REASONS = [
-  { reason: 'Посмотрели Демо, но нет файла для выгрузки', percent: 38, count: 245, color: '#3B82F6' },
-  { reason: 'Требуется согласование оплаты с бухгалтерией/руководством', percent: 27, count: 174, color: '#8B5CF6' },
-  { reason: 'Ищут бесплатное решение без ограничений', percent: 18, count: 116, color: '#F59E0B' },
-  { reason: 'Хотят прямое API без загрузки файла', percent: 12, count: 77, color: '#10B981' },
-  { reason: 'Другие причины', percent: 5, count: 32, color: '#64748B' },
-];
-
 const TIER_COLORS: Record<UserTier, string> = {
   EXPRESS_SINGLE: '#94A3B8',
   EXPRESS_PACK: '#64748B',
@@ -181,7 +163,7 @@ export default function AdminPage() {
   const [isLoadingCookieData, setIsLoadingCookieData] = useState(false);
 
   // Продуктовая телеметрия и сквозная воронка конверсий
-  const [funnelPeriod, setFunnelPeriod] = useState<'today' | '7d' | '30d' | 'all'>('7d');
+  const [funnelPeriod, setFunnelPeriod] = useState<'today' | '7d' | '30d' | '90d' | 'all'>('7d');
   const [funnelStats, setFunnelStats] = useState<FunnelStatsResponse | null>(null);
   const [isLoadingFunnel, setIsLoadingFunnel] = useState(false);
 

@@ -159,7 +159,7 @@ export async function recordTelemetryEvent(event: Omit<TelemetryEventPayload, 'i
 /**
  * Расчет агрегированной воронки конверсий
  */
-export async function calculateFunnelStats(period: 'today' | '7d' | '30d' | 'all' = '7d'): Promise<FunnelStatsResponse> {
+export async function calculateFunnelStats(period: 'today' | '7d' | '30d' | '90d' | 'all' = '7d'): Promise<FunnelStatsResponse> {
   const events = getTelemetryEvents();
   const now = Date.now();
 
@@ -172,6 +172,8 @@ export async function calculateFunnelStats(period: 'today' | '7d' | '30d' | 'all
     minTimestamp = now - 7 * 24 * 60 * 60 * 1000;
   } else if (period === '30d') {
     minTimestamp = now - 30 * 24 * 60 * 60 * 1000;
+  } else if (period === '90d') {
+    minTimestamp = now - 90 * 24 * 60 * 60 * 1000;
   }
 
   const filteredEvents = events.filter((e) => {
@@ -347,7 +349,7 @@ export async function calculateFunnelStats(period: 'today' | '7d' | '30d' | 'all
 
   // Динамика по дням
   const dailyDynamics: Array<{ date: string; label: string; visits: number; audits: number; signups: number; payments: number }> = [];
-  const daysToShow = period === 'today' ? 1 : (period === '30d' ? 14 : 7);
+  const daysToShow = period === 'today' ? 1 : (period === '90d' ? 30 : (period === '30d' ? 14 : 7));
 
   for (let i = daysToShow - 1; i >= 0; i--) {
     const dObj = new Date(now - i * 24 * 60 * 60 * 1000);
