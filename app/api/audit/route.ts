@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
     // 1. Выполнение математического движка правил
     const report = await defaultAuditEngine.runAudit(inputData);
 
+    // Добавляем флаг демо в сам отчет
+    if (isDemoRequest) {
+      report.isDemo = true;
+    }
+
     // Добавляем сами кампании для интерактивных визуализаций
     report.campaigns = inputData.campaigns;
 

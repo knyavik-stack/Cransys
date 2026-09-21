@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Shield, Mail, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
 import { Footer } from '@/components/Footer';
@@ -10,6 +10,8 @@ import { Logo } from '@/components/Logo';
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = searchParams.get('redirect') || '/dashboard';
   const { user, loginWithCredentials, logout } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,7 +32,7 @@ export default function SignInPage() {
         if (email.trim().toLowerCase() === (process.env.ADMIN_EMAIL || 'admin@cransys.ru').toLowerCase()) {
           router.push('/admin');
         } else {
-          router.push('/dashboard');
+          router.push(redirectTarget);
         }
       }, 500);
     } else {

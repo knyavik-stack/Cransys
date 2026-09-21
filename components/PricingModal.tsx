@@ -6,6 +6,7 @@ import { UserTier } from '@/lib/billing/tiers';
 import { useTiers } from '@/lib/billing/use-tiers';
 import { Check, X, Shield, Sparkles, CreditCard, ArrowRight, Zap, Building2, KeyRound } from 'lucide-react';
 import { trackProductEvent } from '@/lib/telemetry/tracker';
+import { CheckoutModal } from './CheckoutModal';
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
   const { user, setTier } = useUser();
   const { tierList, getTier } = useTiers();
   const [activePlan, setActivePlan] = useState<UserTier>(initialTier || user?.tier || 'PRO');
+  const [checkoutTier, setCheckoutTier] = useState<UserTier | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -31,52 +33,12 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
 
   if (!isOpen) return null;
 
-  const handleSelectPlan = async (tier: UserTier) => {
-    setIsProcessing(true);
+  const handleSelectPlan = (tier: UserTier) => {
     trackProductEvent('pricing_tier_clicked', {
       userId: user?.id,
       metadata: { tier, price: getTier(tier).price },
     });
-
-    try {
-      const res = await fetch('/api/billing/create-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tier,
-          userId: user?.id || 'guest_user',
-          userEmail: user?.email || 'guest@cransys-test.ru',
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const config = getTier(tier);
-        trackProductEvent('payment_completed', {
-          userId: user?.id,
-          metadata: { tier, amount: config.price },
-        });
-        setTier(tier);
-        setSuccessMessage(`Тариф успешно активирован: ${config.name}`);
-        setTimeout(() => {
-          setSuccessMessage(null);
-          setIsProcessing(false);
-          onClose();
-        }, 1200);
-      }
-    } catch {
-      const config = getTier(tier);
-      trackProductEvent('payment_completed', {
-        userId: user?.id,
-        metadata: { tier, amount: config.price, fallback: true },
-      });
-      setTier(tier);
-      setSuccessMessage(`Тариф ${config.name} активирован.`);
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setIsProcessing(false);
-        onClose();
-      }, 1000);
-    }
+    setCheckoutTier(tier);
   };
 
   return (
@@ -229,6 +191,17 @@ export function PricingModal({ isOpen, onClose, selectedTier: initialTier }: Pri
           <span>Моментальная активация лимитов без скрытых автосписаний</span>
         </div>
       </div>
+
+      {checkoutTier && (
+        <CheckoutModal
+          isOpen={Boolean(checkoutTier)}
+          onClose={() => {
+            setCheckoutTier(null);
+            onClose();
+          }}
+          tier={checkoutTier}
+        />
+      )}
     </div>
   );
 }

@@ -42,12 +42,19 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState(false);
 
+  const isDemoReport = Boolean(
+    report.isDemo ||
+    sourceName.includes('demo_') ||
+    sourceName.includes('Демо')
+  );
+
   const isTesterAccount = isTester || user?.role === 'TESTER_ADMIN' || user?.email === 'test-owner@cransys-audit.ru';
-  const isPaidUser = isTesterAccount || Boolean(user?.hasPaid);
+  // Демо-отчет никогда не заблюрен ни для зарегистрированных, ни для незарегистрированных пользователей
+  const isPaidUser = isDemoReport || isTesterAccount || Boolean(user?.hasPaid);
 
   const tierConfig = getTierConfig(user?.tier);
   const hasWhiteLabel = isPaidUser && (isAllowed('whiteLabel') || user?.tier === 'MAX' || user?.tier === 'CORP');
-  const isExpressTier = !user?.tier || user?.tier === 'EXPRESS_SINGLE' || user?.tier === 'EXPRESS_PACK';
+  const isExpressTier = !isDemoReport && (!user?.tier || user?.tier === 'EXPRESS_SINGLE' || user?.tier === 'EXPRESS_PACK');
 
   const flaggedRules = report.rules.filter((r) => r.flagged);
   const passedRules = report.rules.filter((r) => !r.flagged);
@@ -194,6 +201,11 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 truncate max-w-[250px] sm:max-w-none">
                 {sourceName}
               </span>
+              {isDemoReport && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Демонстрационный отчет (Без списания тарифа)
+                </span>
+              )}
               <span className="text-[11px] text-slate-400">
                 {new Date(report.generatedAt).toLocaleDateString('ru-RU')}
               </span>
@@ -437,7 +449,11 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
             {/* Действия и выгрузка отчетов */}
             <div className="print:hidden mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="text-xs text-slate-500 text-center sm:text-left">
-                {isExpressTier ? (
+                {isDemoReport ? (
+                  <span className="text-emerald-700 font-medium">
+                    Демонстрационный режим: отображены все разделы аналитики, рекомендации и визуализации.
+                  </span>
+                ) : isExpressTier ? (
                   <span>В экспресс-отчете показаны первичные факты сливов.</span>
                 ) : tierConfig.id === 'PRO' ? (
                   <span className="text-blue-600 font-medium">

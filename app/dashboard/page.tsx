@@ -51,10 +51,17 @@ interface AuditHistoryItem {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isTester, isAdmin, setTier, logout } = useUser();
+  const { user, isLoading: isAuthLoading, isTester, isAdmin, setTier, logout } = useUser();
   const { getTier } = useTiers();
   const [history, setHistory] = useState<AuditHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Редирект неавторизованных пользователей на страницу входа
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.replace('/sign-in?redirect=/dashboard');
+    }
+  }, [user, isAuthLoading, router]);
 
   // Модальные окна
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
@@ -148,6 +155,20 @@ export default function DashboardPage() {
   };
 
   const totalLossPrevented = history.reduce((sum, item) => sum + (item.totalLossRub || 0), 0);
+
+  if (isAuthLoading || !user) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <Header />
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-sm font-semibold text-slate-700">Проверка авторизации...</p>
+          <p className="text-xs text-slate-400 mt-1">Перенаправление на страницу входа...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">

@@ -75,6 +75,7 @@ export interface AuditReportData {
   campaigns?: CampaignData[];
   aiAnalysis?: AiAnalysisData;
   searchQueryAnalysis?: SearchQueryAiReport;
+  isDemo?: boolean;
 }
 
 export type AuditReport = AuditReportData;

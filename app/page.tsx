@@ -27,6 +27,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { PricingModal } from '@/components/PricingModal';
+import { CheckoutModal } from '@/components/CheckoutModal';
 import { UserTier } from '@/lib/billing/tiers';
 import { useTiers } from '@/lib/billing/use-tiers';
 import { mockDemoAuditData } from '@/tests/fixtures/demo';
@@ -40,7 +41,8 @@ export default function HomePage() {
   const [activeReport, setActiveReport] = useState<AuditReportData | null>(null);
   const [sourceName, setSourceName] = useState<string>('');
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
-  const [selectedPricingTier, setSelectedPricingTier] = useState<UserTier | undefined>();
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [selectedPricingTier, setSelectedPricingTier] = useState<UserTier>('PRO');
   const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({});
 
@@ -61,9 +63,10 @@ export default function HomePage() {
     setSourceName('');
   };
 
+  // При нажатии на тариф на главной сразу открывается модальное окно оплаты этого тарифа (без дублирующего каталога)
   const handleOpenPricingForTier = (tier: UserTier) => {
     setSelectedPricingTier(tier);
-    setIsPricingModalOpen(true);
+    setIsCheckoutModalOpen(true);
   };
 
   const handleRunDemoAudit = async () => {
@@ -99,12 +102,14 @@ export default function HomePage() {
       // Fallback
       const report = await defaultAuditEngine.runAudit(mockDemoAuditData);
       report.campaigns = mockDemoAuditData.campaigns;
+      report.isDemo = true;
       setActiveReport(report);
       setSourceName(demoFileName);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       const report = await defaultAuditEngine.runAudit(mockDemoAuditData);
       report.campaigns = mockDemoAuditData.campaigns;
+      report.isDemo = true;
       setActiveReport(report);
       setSourceName(demoFileName);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -417,6 +422,12 @@ export default function HomePage() {
         isOpen={isPricingModalOpen}
         onClose={() => setIsPricingModalOpen(false)}
         selectedTier={selectedPricingTier}
+      />
+
+      <CheckoutModal
+        isOpen={isCheckoutModalOpen}
+        onClose={() => setIsCheckoutModalOpen(false)}
+        tier={selectedPricingTier}
       />
     </div>
   );

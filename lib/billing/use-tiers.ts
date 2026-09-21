@@ -110,10 +110,13 @@ export function useTiers() {
     }
 
     // Всегда актуализируем тарифы при монтировании хука
-    fetchTiers();
+    const timer = setTimeout(() => {
+      fetchTiers();
+    }, 0);
 
     return () => {
       ignore = true;
+      clearTimeout(timer);
       subscribers.delete(handleUpdate);
       if (typeof window !== 'undefined') {
         window.removeEventListener('cransys_tiers_changed', handleCustomEvent);

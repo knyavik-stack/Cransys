@@ -91,7 +91,7 @@ export function Header() {
             ) : (
               <Link
                 id="header-history-link"
-                href="/dashboard"
+                href={user ? '/dashboard' : '/sign-in?redirect=/dashboard'}
                 className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
                   isDashboard
                     ? 'text-blue-700 bg-blue-50 border-blue-200 font-bold'
@@ -255,7 +255,7 @@ export function Header() {
                 </Link>
               ) : (
                 <Link
-                  href="/dashboard"
+                  href={user ? '/dashboard' : '/sign-in?redirect=/dashboard'}
                   onClick={closeMobileMenu}
                   className="p-2.5 rounded-xl hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center justify-between transition-colors"
                 >
