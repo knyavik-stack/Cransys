@@ -79,6 +79,7 @@ import {
 } from 'recharts';
 import { useUser } from '@/lib/auth/user-context';
 import { UserTier, TierDefinition, TIER_CONFIGS, getTierConfig } from '@/lib/billing/tiers';
+import { notifyTiersUpdated } from '@/lib/billing/use-tiers';
 import { DEFAULT_SITE_SETTINGS, SiteSettings, SocialLinkItem, CookieConsentStats, CookieConsentRecord } from '@/lib/settings/types';
 import { FunnelStatsResponse } from '@/lib/telemetry/types';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
@@ -715,6 +716,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success) {
         setTiersConfig(data.tiers);
+        notifyTiersUpdated(data.tiers);
         setEditingTierId(null);
         showNotification(`Тариф ${data.tier?.name || editTierForm.name} успешно сохранен и обновлен на сайте!`);
       } else {
