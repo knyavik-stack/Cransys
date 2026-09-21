@@ -69,6 +69,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (!stored) return null;
       const parsed = JSON.parse(stored);
+      // Защита: отсекаем любые остаточные гостевые профили
+      if (!parsed || parsed.id === 'guest_account' || parsed.email === 'guest@cransys.ru') {
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
+      }
       if (parsed.tier === 'EXPRESS') {
         parsed.tier = 'EXPRESS_PACK';
       }
@@ -96,6 +101,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
         } else {
           const parsed = JSON.parse(stored);
+          if (!parsed || parsed.id === 'guest_account' || parsed.email === 'guest@cransys.ru') {
+            setUser(null);
+            return;
+          }
           const config = getTierConfig(parsed.tier);
           parsed.reportsLimit = config.reportsLimit;
           setUser(parsed);
@@ -221,18 +230,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const setTier = (tier: UserTier, makePaid?: boolean) => {
     const config = getTierConfig(tier);
     if (!user) {
-      const guestUser: UserProfile = {
-        id: 'guest_account',
-        email: 'guest@cransys.ru',
-        name: 'Гость',
-        role: 'USER',
-        tier: tier,
-        hasPaid: makePaid ?? false,
-        reportsUsed: 0,
-        reportsLimit: config.reportsLimit,
-        createdAt: new Date().toISOString(),
-      };
-      setUserProfile(guestUser);
+      // Гостевые сессии запрещены. Не создаем фиктивный аккаунт.
       return;
     }
 
@@ -249,7 +247,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const markPaid = (tier: UserTier) => {
     const config = getTierConfig(tier);
     if (!user) {
-      setTier(tier, true);
       return;
     }
     const updated: UserProfile = {

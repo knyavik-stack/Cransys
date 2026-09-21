@@ -164,11 +164,8 @@ export async function GET(req: NextRequest) {
 
     // Фиксируем логин в слотную историю расчетного месяца
     await recordDirectSlotUsage(targetUserId, login);
-    if (targetUserId !== 'current_user') {
-      await recordDirectSlotUsage('current_user', login);
-    }
 
-    // Сохраняем подключение для целевого пользователя
+    // Сохраняем подключение исключительно для целевого авторизованного пользователя
     const connection = await saveDirectConnection({
       userId: targetUserId,
       userEmail: login,
@@ -177,20 +174,6 @@ export async function GET(req: NextRequest) {
       expiresIn: tokenData.expires_in,
       login,
     });
-
-    // Также дублируем для 'current_user' если targetUserId отличается
-    if (targetUserId !== 'current_user') {
-      try {
-        await saveDirectConnection({
-          userId: 'current_user',
-          userEmail: login,
-          accessToken: tokenData.access_token,
-          refreshToken: tokenData.refresh_token,
-          expiresIn: tokenData.expires_in,
-          login,
-        });
-      } catch {}
-    }
 
     if (isPopup) {
       return renderPopupResponse(true, `Аккаунт <b>${login}</b> успешно подключен к системе аудита.`, { login });

@@ -9,8 +9,21 @@ import { findUserById } from '@/lib/db/users-store';
 import { getTierConfig } from '@/lib/billing/tiers';
 
 export async function GET(req: NextRequest) {
-  const userId = req.headers.get('x-user-id') || 'current_user';
+  const userId = req.headers.get('x-user-id');
   const targetId = req.nextUrl.searchParams.get('connectionId') || undefined;
+
+  if (!userId || userId === 'guest' || userId === 'guest_account' || userId === 'current_user') {
+    return NextResponse.json({
+      connected: false,
+      connections: [],
+      slots: {
+        maxSlots: 1,
+        usedSlots: 0,
+        usedLogins: [],
+        availableSlots: 1,
+      },
+    });
+  }
 
   const [connections, conn, slotsUsage, user] = await Promise.all([
     getAllDirectConnectionsForUser(userId),
@@ -62,7 +75,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const userId = req.headers.get('x-user-id') || 'current_user';
+  const userId = req.headers.get('x-user-id');
+  if (!userId || userId === 'guest' || userId === 'guest_account' || userId === 'current_user') {
+    return NextResponse.json({ success: false, error: 'Требуется авторизация' }, { status: 401 });
+  }
+
   let connectionId =
     req.nextUrl.searchParams.get('connectionId') ||
     req.nextUrl.searchParams.get('login') ||

@@ -15,7 +15,16 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId') || 'current_user';
+  const userId = searchParams.get('userId');
+  if (!userId || userId === 'guest' || userId === 'guest_account' || userId === 'current_user') {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Требуется авторизация в личном кабинете для подключения Яндекс.Директа',
+      },
+      { status: 401 }
+    );
+  }
   const popup = searchParams.get('popup') === '1' || searchParams.get('popup') === 'true' ? '1' : '0';
 
   // State параметр для защиты от CSRF атак и сохранения контекста пользователя

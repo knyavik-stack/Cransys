@@ -11,6 +11,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { tier, userId, userEmail } = body;
 
+    if (!userId || userId === 'guest' || userId === 'guest_account' || userId === 'current_user') {
+      return NextResponse.json(
+        { success: false, error: 'Для оформления тарифа необходимо войти в личный кабинет.' },
+        { status: 401 }
+      );
+    }
+
     const validTiers: string[] = ['EXPRESS_SINGLE', 'EXPRESS_PACK', 'PRO', 'MAX', 'CORP', 'EXPRESS'];
     if (!tier || !validTiers.includes(tier)) {
       return NextResponse.json({ success: false, error: 'Неверный тариф' }, { status: 400 });

@@ -213,6 +213,10 @@ export async function getAllDirectConnections(): Promise<YandexDirectConnection[
  * Получение всех активных подключений пользователя (для мульти-аккаунтов в CORP / MAX)
  */
 export async function getAllDirectConnectionsForUser(userId: string): Promise<YandexDirectConnection[]> {
+  if (!userId || userId === 'guest' || userId === 'guest_account') {
+    return [];
+  }
+
   const sql = getDb();
   if (sql) {
     try {
@@ -230,7 +234,7 @@ export async function getAllDirectConnectionsForUser(userId: string): Promise<Ya
           last_sync_at as "lastSyncAt",
           status
         FROM public.yandex_connections
-        WHERE (user_id = ${userId} OR user_id = 'current_user') AND status = 'ACTIVE'
+        WHERE user_id = ${userId} AND status = 'ACTIVE'
         ORDER BY connected_at DESC;
       `;
 
@@ -254,7 +258,7 @@ export async function getAllDirectConnectionsForUser(userId: string): Promise<Ya
   }
 
   return memoryConnections.filter(
-    (c) => (c.userId === userId || c.userId === 'current_user') && c.status === 'ACTIVE'
+    (c) => c.userId === userId && c.status === 'ACTIVE'
   );
 }
 
@@ -262,6 +266,10 @@ export async function getDirectConnectionByUserId(
   userId: string,
   connectionIdOrLogin?: string
 ): Promise<YandexDirectConnection | null> {
+  if (!userId || userId === 'guest' || userId === 'guest_account') {
+    return null;
+  }
+
   const sql = getDb();
   if (sql) {
     try {
@@ -282,7 +290,7 @@ export async function getDirectConnectionByUserId(
             status
           FROM public.yandex_connections
           WHERE (id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin})
-            AND (user_id = ${userId} OR user_id = 'current_user')
+            AND user_id = ${userId}
             AND status = 'ACTIVE'
           ORDER BY connected_at DESC
           LIMIT 1;
@@ -306,7 +314,7 @@ export async function getDirectConnectionByUserId(
           last_sync_at as "lastSyncAt",
           status
         FROM public.yandex_connections
-        WHERE (user_id = ${userId} OR user_id = 'current_user') AND status = 'ACTIVE'
+        WHERE user_id = ${userId} AND status = 'ACTIVE'
         ORDER BY connected_at DESC
         LIMIT 1;
       `;
@@ -323,20 +331,24 @@ export async function getDirectConnectionByUserId(
     const match = memoryConnections.find(
       (c) =>
         (c.id === connectionIdOrLogin || c.login === connectionIdOrLogin) &&
-        (c.userId === userId || c.userId === 'current_user') &&
+        c.userId === userId &&
         c.status === 'ACTIVE'
     );
     if (match) return match;
   }
 
   const exact = memoryConnections
-    .filter((c) => (c.userId === userId || c.userId === 'current_user') && c.status === 'ACTIVE')
+    .filter((c) => c.userId === userId && c.status === 'ACTIVE')
     .sort((a, b) => new Date(b.connectedAt).getTime() - new Date(a.connectedAt).getTime())[0];
 
   return exact || null;
 }
 
 export async function disconnectDirect(userId: string, connectionIdOrLogin?: string): Promise<boolean> {
+  if (!userId || userId === 'guest' || userId === 'guest_account') {
+    return false;
+  }
+
   const sql = getDb();
   if (sql) {
     try {
@@ -345,13 +357,14 @@ export async function disconnectDirect(userId: string, connectionIdOrLogin?: str
         // Удаляем конкретный кабинет (по id или логину)
         await sql`
           DELETE FROM public.yandex_connections
-          WHERE id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin};
+          WHERE (id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin})
+            AND user_id = ${userId};
         `;
       } else {
         // Удаляем все кабинеты пользователя
         await sql`
           DELETE FROM public.yandex_connections
-          WHERE user_id = ${userId} OR user_id = 'current_user';
+          WHERE user_id = ${userId};
         `;
       }
     } catch (e) {
@@ -361,11 +374,11 @@ export async function disconnectDirect(userId: string, connectionIdOrLogin?: str
 
   if (connectionIdOrLogin) {
     memoryConnections = memoryConnections.filter(
-      (c) => c.id !== connectionIdOrLogin && c.login !== connectionIdOrLogin
+      (c) => (c.id !== connectionIdOrLogin && c.login !== connectionIdOrLogin) || c.userId !== userId
     );
   } else {
     memoryConnections = memoryConnections.filter(
-      (c) => c.userId !== userId && c.userId !== 'current_user'
+      (c) => c.userId !== userId
     );
   }
   saveLocalConnections(memoryConnections);
@@ -379,6 +392,10 @@ export async function getDirectSlotsUsageForMonth(
   userId: string,
   monthPeriod: string = new Date().toISOString().slice(0, 7) // "YYYY-MM"
 ): Promise<{ usedLogins: string[]; count: number }> {
+  if (!userId || userId === 'guest' || userId === 'guest_account') {
+    return { usedLogins: [], count: 0 };
+  }
+
   const sql = getDb();
   if (sql) {
     try {
@@ -396,7 +413,7 @@ export async function getDirectSlotsUsageForMonth(
       const rows = await sql`
         SELECT DISTINCT login
         FROM public.direct_slots_history
-        WHERE (user_id = ${userId} OR user_id = 'current_user')
+        WHERE user_id = ${userId}
           AND month_period = ${monthPeriod};
       `;
 
@@ -411,7 +428,7 @@ export async function getDirectSlotsUsageForMonth(
 
   const matches = memorySlotsUsage.filter(
     (s) =>
-      (s.userId === userId || s.userId === 'current_user') &&
+      s.userId === userId &&
       s.monthPeriod === monthPeriod
   );
   const unique = Array.from(new Set(matches.map((m) => m.login)));
@@ -427,7 +444,7 @@ export async function recordDirectSlotUsage(
   monthPeriod: string = new Date().toISOString().slice(0, 7)
 ): Promise<void> {
   const normLogin = (login || '').trim();
-  if (!normLogin) return;
+  if (!normLogin || !userId || userId === 'guest' || userId === 'guest_account') return;
 
   const record: DirectSlotUsageRecord = {
     id: `slot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -454,7 +471,7 @@ export async function recordDirectSlotUsage(
       // Проверяем, есть ли уже этот логин за данный месяц
       const existing = await sql`
         SELECT id FROM public.direct_slots_history
-        WHERE (user_id = ${userId} OR user_id = 'current_user')
+        WHERE user_id = ${userId}
           AND login = ${normLogin}
           AND month_period = ${monthPeriod}
         LIMIT 1;
@@ -477,7 +494,7 @@ export async function recordDirectSlotUsage(
   // Обновляем локальную память
   const alreadyInLocal = memorySlotsUsage.some(
     (s) =>
-      (s.userId === userId || s.userId === 'current_user') &&
+      s.userId === userId &&
       s.login === normLogin &&
       s.monthPeriod === monthPeriod
   );

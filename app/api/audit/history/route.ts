@@ -5,8 +5,8 @@ export async function GET(req: NextRequest) {
   const userId = req.headers.get('x-user-id');
   const userEmail = req.headers.get('x-user-email');
 
-  // Если пользователь не авторизован — возвращаем пустую историю с подсказкой
-  if (!userId && !userEmail) {
+  // Если пользователь не авторизован или гость — возвращаем пустую историю
+  if (!userId || userId === 'guest' || userId === 'guest_account' || userId === 'current_user' || userEmail === 'guest@cransys.ru') {
     return NextResponse.json({
       configured: true,
       reports: [],

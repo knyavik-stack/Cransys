@@ -8,8 +8,18 @@ import { notifyAuditCompleted } from '@/lib/notifications/admin-notify';
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = req.headers.get('x-user-id') || 'current_user';
+    const userId = req.headers.get('x-user-id');
     const userEmail = req.headers.get('x-user-email') || undefined;
+
+    if (!userId || userId === 'guest' || userId === 'guest_account' || userId === 'current_user') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Требуется авторизация для запуска онлайн-аудита',
+        },
+        { status: 401 }
+      );
+    }
 
     let body: any = {};
     try {

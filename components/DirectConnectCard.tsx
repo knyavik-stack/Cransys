@@ -298,7 +298,12 @@ export function DirectConnectCard({
     setErrorMsg('');
     setSuccessMsg('');
 
-    const userId = user?.id || 'current_user';
+    if (!user) {
+      setErrorMsg('Для подключения кабинета Яндекс.Директа необходимо войти в личный кабинет.');
+      return;
+    }
+
+    const userId = user.id;
     const authUrl = `/api/direct/auth?userId=${encodeURIComponent(userId)}&popup=1`;
 
     const width = 650;

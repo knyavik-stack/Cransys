@@ -62,7 +62,19 @@ function mapCampaignState(state: string): { label: string; isStopped: boolean } 
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = req.headers.get('x-user-id') || 'current_user';
+    const userId = req.headers.get('x-user-id');
+    if (!userId || userId === 'guest' || userId === 'guest_account' || userId === 'current_user') {
+      return NextResponse.json(
+        {
+          success: false,
+          connected: false,
+          error: 'Требуется авторизация для доступа к кампаниям Яндекс.Директа',
+          campaigns: [],
+        },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const connectionId = searchParams.get('connectionId') || undefined;
 

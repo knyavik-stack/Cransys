@@ -12,7 +12,15 @@ export interface DirectClientAccount {
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = req.headers.get('x-user-id') || 'current_user';
+    const userId = req.headers.get('x-user-id');
+    if (!userId || userId === 'guest' || userId === 'guest_account' || userId === 'current_user') {
+      return NextResponse.json({
+        success: false,
+        connected: false,
+        error: 'Требуется авторизация для доступа к кабинетам Яндекс.Директа',
+      }, { status: 401 });
+    }
+
     const connectionId = req.nextUrl.searchParams.get('connectionId') || undefined;
     const conn = await getDirectConnectionByUserId(userId, connectionId);
 
