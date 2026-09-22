@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   KeyRound,
   CheckCircle2,
@@ -85,6 +85,22 @@ export function DirectConnectCard({
   const [notice, setNotice] = useState<string | null>(null);
   const [campaignFilter, setCampaignFilter] = useState<CampaignFilterType>('ALL');
 
+  // Refs для предотвращения циклического перезапуска useEffect при переключении табов
+  const activeConnIdRef = useRef(activeConnectionId);
+  useEffect(() => {
+    activeConnIdRef.current = activeConnectionId;
+  }, [activeConnectionId]);
+
+  const selectedAccountRef = useRef(selectedAccount);
+  useEffect(() => {
+    selectedAccountRef.current = selectedAccount;
+  }, [selectedAccount]);
+
+  const loginRef = useRef(login);
+  useEffect(() => {
+    loginRef.current = login;
+  }, [login]);
+
   // Период анализа
   const [periodDays, setPeriodDays] = useState<number>(90);
   const [isCustomPeriod, setIsCustomPeriod] = useState(false);
@@ -115,8 +131,9 @@ export function DirectConnectCard({
           headers['x-user-email'] = user.email;
         }
 
-        const url = targetConnId
-          ? `/api/direct/status?connectionId=${encodeURIComponent(targetConnId)}`
+        const effectiveTargetId = targetConnId || activeConnIdRef.current;
+        const url = effectiveTargetId
+          ? `/api/direct/status?connectionId=${encodeURIComponent(effectiveTargetId)}`
           : '/api/direct/status';
 
         const res = await fetch(url, { headers });
@@ -131,7 +148,7 @@ export function DirectConnectCard({
 
           if (data.connectionId) {
             setActiveConnectionId(data.connectionId);
-          } else if (data.connections?.length > 0) {
+          } else if (data.connections?.length > 0 && !activeConnIdRef.current) {
             setActiveConnectionId(data.connections[0].id);
           }
 
@@ -164,7 +181,7 @@ export function DirectConnectCard({
         const headers: Record<string, string> = {};
         if (user) headers['x-user-id'] = user.id;
 
-        const effectiveConnId = connId || activeConnectionId;
+        const effectiveConnId = connId || activeConnIdRef.current;
         const url = effectiveConnId
           ? `/api/direct/accounts?connectionId=${encodeURIComponent(effectiveConnId)}`
           : '/api/direct/accounts';
@@ -186,7 +203,7 @@ export function DirectConnectCard({
         console.warn('Error fetching agency sub-accounts:', e);
       }
     },
-    [user, activeConnectionId]
+    [user]
   );
 
   // 3. Загрузка реальных кампаний из Яндекс.Директ API
@@ -203,11 +220,11 @@ export function DirectConnectCard({
         if (user) headers['x-user-id'] = user.id;
 
         const params = new URLSearchParams();
-        const effectiveConnId = connId || activeConnectionId;
+        const effectiveConnId = connId || activeConnIdRef.current;
         if (effectiveConnId) params.set('connectionId', effectiveConnId);
 
-        // Если передан явный clientLogin (например, при переключении таба), используем строго его, не читая устаревший selectedAccount
-        const targetLogin = clientLogin || selectedAccount || login;
+        // Используем переданный логин или актуальный из ref
+        const targetLogin = clientLogin || selectedAccountRef.current || loginRef.current;
         if (targetLogin) params.set('clientLogin', targetLogin);
 
         const res = await fetch(`/api/direct/campaigns?${params.toString()}`, { headers });
@@ -247,10 +264,10 @@ export function DirectConnectCard({
         setIsLoadingCampaigns(false);
       }
     },
-    [user, activeConnectionId, selectedAccount, login]
+    [user]
   );
 
-  // Инициализация при монтировании
+  // Инициализация строго один раз при монтировании или смене пользователя
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -263,7 +280,8 @@ export function DirectConnectCard({
     return () => {
       isMounted = false;
     };
-  }, [fetchStatus, fetchAccounts, fetchCampaigns]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Стабильная зависимость: не пересоздается при кликах по вкладкам!
 
   // Слушатель сообщений от всплывающего окна OAuth Яндекс ID
   useEffect(() => {
@@ -1131,6 +1149,14 @@ export function DirectConnectCard({
                             <span className="font-mono text-[10px] text-slate-400">ID: {camp.id}</span>
                             <span>•</span>
                             <span>{camp.typeLabel}</span>
+                            {camp.statusClarification && (
+                              <>
+                                <span>•</span>
+                                <span className="text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/80 text-[10px]">
+                                  {camp.statusClarification}
+                                </span>
+                              </>
+                            )}
                             {camp.isStopped && (
                               <>
                                 <span>•</span>
