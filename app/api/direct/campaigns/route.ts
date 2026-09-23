@@ -79,8 +79,10 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const connectionId = searchParams.get('connectionId') || undefined;
+    const clientLoginParam = searchParams.get('clientLogin') || undefined;
 
-    const conn = await getDirectConnectionByUserId(userId, connectionId);
+    // Ищем подключение по connectionId или логину кабинета
+    const conn = await getDirectConnectionByUserId(userId, connectionId || clientLoginParam);
 
     if (!conn || !conn.accessToken || conn.status !== 'ACTIVE') {
       return NextResponse.json(
@@ -94,7 +96,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const clientLogin = searchParams.get('clientLogin') || conn.login;
+    const clientLogin = clientLoginParam || conn.login;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json; charset=utf-8',
@@ -102,7 +104,7 @@ export async function GET(req: NextRequest) {
       'Accept-Language': 'ru',
     };
 
-    // Если это агентский аккаунт и выбран конкретный субклиент
+    // Если это агентский аккаунт и выбран конкретный субклиент (и логин не совпадает с владельцем токена)
     if (clientLogin && clientLogin !== conn.login) {
       headers['Client-Login'] = clientLogin;
     }

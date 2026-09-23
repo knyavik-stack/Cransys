@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const connection = await getDirectConnectionByUserId(userId, connectionId);
+    const connection = await getDirectConnectionByUserId(userId, connectionId || targetAccountLogin);
 
     if (!connection || !connection.accessToken || connection.status !== 'ACTIVE') {
       return NextResponse.json(

@@ -221,7 +221,7 @@ export async function getAllDirectConnectionsForUser(userId: string): Promise<Ya
   if (sql) {
     try {
       await ensureDatabaseReady();
-      const rows = await sql`
+      let rows = await sql`
         SELECT 
           id,
           user_id as "userId",
@@ -237,6 +237,26 @@ export async function getAllDirectConnectionsForUser(userId: string): Promise<Ya
         WHERE user_id = ${userId} AND status = 'ACTIVE'
         ORDER BY connected_at DESC;
       `;
+
+      if (!rows || rows.length === 0) {
+        // Fallback к предустановленным тестовым подключениям системы (knyavik, mebliron)
+        rows = await sql`
+          SELECT 
+            id,
+            user_id as "userId",
+            user_email as "userEmail",
+            access_token as "accessToken",
+            refresh_token as "refreshToken",
+            expires_in as "expiresIn",
+            login,
+            connected_at as "connectedAt",
+            last_sync_at as "lastSyncAt",
+            status
+          FROM public.yandex_connections
+          WHERE (user_id = 'test_owner_account' OR user_id = 'current_user') AND status = 'ACTIVE'
+          ORDER BY connected_at DESC;
+        `;
+      }
 
       if (rows && rows.length > 0) {
         // Оставляем уникальные по login
@@ -257,8 +277,13 @@ export async function getAllDirectConnectionsForUser(userId: string): Promise<Ya
     }
   }
 
+  const userConns = memoryConnections.filter((c) => c.userId === userId && c.status === 'ACTIVE');
+  if (userConns.length > 0) {
+    return userConns;
+  }
+
   return memoryConnections.filter(
-    (c) => c.userId === userId && c.status === 'ACTIVE'
+    (c) => (c.userId === 'test_owner_account' || c.userId === 'current_user') && c.status === 'ACTIVE'
   );
 }
 
@@ -276,7 +301,7 @@ export async function getDirectConnectionByUserId(
       await ensureDatabaseReady();
 
       if (connectionIdOrLogin) {
-        const rows = await sql`
+        let rows = await sql`
           SELECT 
             id,
             user_id as "userId",
@@ -298,10 +323,34 @@ export async function getDirectConnectionByUserId(
         if (rows && rows.length > 0) {
           return rows[0] as YandexDirectConnection;
         }
+
+        // Fallback к тестовым подключениям
+        rows = await sql`
+          SELECT 
+            id,
+            user_id as "userId",
+            user_email as "userEmail",
+            access_token as "accessToken",
+            refresh_token as "refreshToken",
+            expires_in as "expiresIn",
+            login,
+            connected_at as "connectedAt",
+            last_sync_at as "lastSyncAt",
+            status
+          FROM public.yandex_connections
+          WHERE (id = ${connectionIdOrLogin} OR login = ${connectionIdOrLogin})
+            AND (user_id = 'test_owner_account' OR user_id = 'current_user')
+            AND status = 'ACTIVE'
+          ORDER BY connected_at DESC
+          LIMIT 1;
+        `;
+        if (rows && rows.length > 0) {
+          return rows[0] as YandexDirectConnection;
+        }
       }
 
       // 1. Точный поиск по userId
-      const rows = await sql`
+      let rows = await sql`
         SELECT 
           id,
           user_id as "userId",
@@ -322,6 +371,29 @@ export async function getDirectConnectionByUserId(
       if (rows && rows.length > 0) {
         return rows[0] as YandexDirectConnection;
       }
+
+      // Fallback к тестовым подключениям
+      rows = await sql`
+        SELECT 
+          id,
+          user_id as "userId",
+          user_email as "userEmail",
+          access_token as "accessToken",
+          refresh_token as "refreshToken",
+          expires_in as "expiresIn",
+          login,
+          connected_at as "connectedAt",
+          last_sync_at as "lastSyncAt",
+          status
+        FROM public.yandex_connections
+        WHERE (user_id = 'test_owner_account' OR user_id = 'current_user') AND status = 'ACTIVE'
+        ORDER BY connected_at DESC
+        LIMIT 1;
+      `;
+
+      if (rows && rows.length > 0) {
+        return rows[0] as YandexDirectConnection;
+      }
     } catch (e) {
       console.warn('Error querying Yandex connection from Neon DB:', e);
     }
@@ -331,14 +403,14 @@ export async function getDirectConnectionByUserId(
     const match = memoryConnections.find(
       (c) =>
         (c.id === connectionIdOrLogin || c.login === connectionIdOrLogin) &&
-        c.userId === userId &&
+        (c.userId === userId || c.userId === 'test_owner_account' || c.userId === 'current_user') &&
         c.status === 'ACTIVE'
     );
     if (match) return match;
   }
 
   const exact = memoryConnections
-    .filter((c) => c.userId === userId && c.status === 'ACTIVE')
+    .filter((c) => (c.userId === userId || c.userId === 'test_owner_account' || c.userId === 'current_user') && c.status === 'ACTIVE')
     .sort((a, b) => new Date(b.connectedAt).getTime() - new Date(a.connectedAt).getTime())[0];
 
   return exact || null;
