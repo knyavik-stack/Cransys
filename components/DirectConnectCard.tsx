@@ -1149,6 +1149,22 @@ export function DirectConnectCard({
                             <span className="font-mono text-[10px] text-slate-400">ID: {camp.id}</span>
                             <span>•</span>
                             <span>{camp.typeLabel}</span>
+                            {typeof camp.clicks === 'number' && camp.clicks > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="text-slate-600 font-medium">
+                                  {camp.clicks.toLocaleString('ru-RU')} кликов
+                                </span>
+                              </>
+                            )}
+                            {typeof camp.cost === 'number' && camp.cost > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="text-slate-700 font-semibold">
+                                  Расход: {Math.round(camp.cost).toLocaleString('ru-RU')} ₽
+                                </span>
+                              </>
+                            )}
                             {camp.statusClarification && (
                               <>
                                 <span>•</span>

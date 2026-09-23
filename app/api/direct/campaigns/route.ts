@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDirectConnectionByUserId } from '@/lib/db/direct-connections-store';
+import { discoverCampaignsFromReports } from '@/lib/direct/reports-discovery';
 
 export interface DirectCampaignItem {
   id: string;
@@ -18,6 +19,7 @@ export interface DirectCampaignItem {
   };
   clicks?: number;
   impressions?: number;
+  cost?: number;
   currency?: string;
   isDemo: false;
 }
@@ -211,6 +213,37 @@ export async function GET(req: NextRequest) {
     });
 
     if (campaigns.length === 0) {
+      // Пытаемся обнаружить кампании через Reports API (для неоплаченных, остановленных из-за нулевого баланса, переведенных или архивных)
+      try {
+        const targetSubLogin = clientLogin && clientLogin !== conn.login ? clientLogin : conn.login || clientLogin;
+        const discovered = await discoverCampaignsFromReports(conn.accessToken, targetSubLogin);
+        if (discovered.length > 0) {
+          discovered.forEach((d) => {
+            campaigns.push({
+              id: d.id,
+              name: d.name,
+              state: d.state,
+              stateLabel: d.stateLabel,
+              isStopped: d.isStopped,
+              status: d.status,
+              statusClarification: d.statusClarification,
+              type: d.type,
+              typeLabel: mapCampaignType(d.type),
+              startDate: undefined,
+              clicks: d.clicks,
+              impressions: d.impressions,
+              cost: d.cost,
+              currency: 'RUB',
+              isDemo: false,
+            });
+          });
+        }
+      } catch (discErr) {
+        console.warn('[YANDEX DIRECT] Reports discovery fallback error:', discErr);
+      }
+    }
+
+    if (campaigns.length === 0) {
       return NextResponse.json({
         success: true,
         isLiveApi: true,
@@ -230,9 +263,9 @@ export async function GET(req: NextRequest) {
 
     let notice: string | null = null;
     if (stoppedCount > 0 && activeCount === 0) {
-      notice = `В кабинете ${stoppedCount} ${stoppedCount === 1 ? 'кампания' : 'кампаний'} с остановленными показами. Все они доступны для комплексного аудита настроек, минус-фраз и рисков.`;
+      notice = `В кабинете ${stoppedCount} ${stoppedCount === 1 ? 'кампания' : 'кампаний'} с остановленными показами (требует оплаты / пополнения счета). Все они доступны для комплексного аудита настроек, минус-фраз и рисков.`;
     } else if (stoppedCount > 0) {
-      notice = `Загружено ${campaigns.length} кампаний (${activeCount} активных, ${stoppedCount} остановленных). Доступен аудит как работающих, так и приостановленных кампаний.`;
+      notice = `Загружено ${campaigns.length} кампаний (${activeCount} активных, ${stoppedCount} остановленных / ожидающих оплаты). Доступен аудит как работающих, так и приостановленных кампаний.`;
     }
 
     return NextResponse.json({

@@ -5,6 +5,7 @@ import { saveAuditRecord } from '@/lib/db/audit-store';
 import { findUserById, updateUser } from '@/lib/db/users-store';
 import { saveReportToStorage } from '@/lib/storage/report-storage';
 import { notifyAuditCompleted } from '@/lib/notifications/admin-notify';
+import { discoverCampaignsFromReports } from '@/lib/direct/reports-discovery';
 
 export async function POST(req: NextRequest) {
   try {
@@ -127,6 +128,32 @@ export async function POST(req: NextRequest) {
     }
 
     if (campaignsList.length === 0) {
+      // Пытаемся обнаружить кампании через Reports API (для неоплаченных, остановленных из-за нулевого баланса или архивных)
+      try {
+        const targetSubLogin = targetAccountLogin && targetAccountLogin !== connection.login
+          ? targetAccountLogin
+          : connection.login || targetAccountLogin;
+        const discovered = await discoverCampaignsFromReports(connection.accessToken, targetSubLogin);
+        if (discovered.length > 0) {
+          campaignsList = discovered.map((d) => ({
+            Id: d.id,
+            Name: d.name,
+            Type: d.type,
+            State: d.state,
+            Status: d.status,
+            StatusClarification: d.statusClarification,
+            Cost: d.cost,
+            Clicks: d.clicks,
+            Impressions: d.impressions,
+            Currency: 'RUB',
+          }));
+        }
+      } catch (discErr) {
+        console.warn('[YANDEX DIRECT AUDIT] Reports discovery error:', discErr);
+      }
+    }
+
+    if (campaignsList.length === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -160,7 +187,9 @@ export async function POST(req: NextRequest) {
         const isStopped =
           c.State === 'OFF' || c.State === 'SUSPENDED' || c.State === 'ENDED' || c.State === 'ARCHIVED';
         const dailyBudgetValue = c.DailyBudget?.Amount ? Number(c.DailyBudget.Amount) / 1000000 : 1000;
-        const estSpend = isStopped ? 0 : Math.round(dailyBudgetValue * Math.min(periodDays, 30));
+        const estSpend = isStopped
+          ? (Number(c.Cost) || 0)
+          : Math.round(dailyBudgetValue * Math.min(periodDays, 30));
 
         let campType: 'SMART' | 'SEARCH' | 'RSYA' | 'UNKNOWN' = 'UNKNOWN';
         if (c.Type === 'SMART_CAMPAIGN') {
@@ -171,18 +200,22 @@ export async function POST(req: NextRequest) {
           campType = 'RSYA';
         }
 
+        const realClicks = Number(c.Clicks) || 0;
+        const realImpressions = Number(c.Impressions) || 0;
+        const realCost = Number(c.Cost) || 0;
+
         return {
           id: String(c.Id),
           name: c.Name || `Кампания ${c.Id}`,
           type: campType,
           strategy: 'Оптимизация кликов / Автостратегия',
-          spendRub: estSpend,
-          clicks: isStopped ? 0 : Math.round(estSpend / 35),
-          impressions: isStopped ? 0 : Math.round(estSpend / 35) * 50,
+          spendRub: realCost > 0 ? Math.round(realCost) : estSpend,
+          clicks: realClicks > 0 ? realClicks : (isStopped ? 0 : Math.round(estSpend / 35)),
+          impressions: realImpressions > 0 ? realImpressions : (isStopped ? 0 : Math.round(estSpend / 35) * 50),
           conversions: isStopped ? 0 : Math.max(0, Math.round(estSpend / 1500)),
-          desktopSpendRub: Math.round(estSpend * 0.4),
+          desktopSpendRub: Math.round((realCost > 0 ? realCost : estSpend) * 0.4),
           desktopConversions: 0,
-          mobileSpendRub: Math.round(estSpend * 0.6),
+          mobileSpendRub: Math.round((realCost > 0 ? realCost : estSpend) * 0.6),
           mobileConversions: isStopped ? 0 : Math.max(0, Math.round(estSpend / 1500)),
         };
       }),
