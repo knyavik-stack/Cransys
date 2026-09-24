@@ -1,8 +1,17 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 import {
   FileSpreadsheet,
   PlusCircle,
@@ -25,12 +34,16 @@ import {
   AlertTriangle,
   Zap,
   Shield,
+  ShieldAlert,
+  Sliders,
 } from 'lucide-react';
 import { AuditReportData } from '@/lib/audit/types';
 import { AuditResults } from '@/components/AuditResults';
 import { useUser } from '@/lib/auth/user-context';
 import { PricingModal } from '@/components/PricingModal';
 import { WhiteLabelSettingsModal } from '@/components/WhiteLabelSettingsModal';
+import { AuditComparisonModal } from '@/components/AuditComparisonModal';
+import { RsyaBlacklistModal } from '@/components/RsyaBlacklistModal';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
 import { DirectConnectCard } from '@/components/DirectConnectCard';
@@ -66,6 +79,8 @@ export default function DashboardPage() {
   // Модальные окна
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState(false);
+  const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+  const [isBlacklistModalOpen, setIsBlacklistModalOpen] = useState(false);
 
   // Для просмотра конкретного аудита из истории
   const [selectedReport, setSelectedReport] = useState<AuditReportData | null>(null);
@@ -104,6 +119,40 @@ export default function DashboardPage() {
     loadHistory();
   }, [user]);
 
+  const totalLossPrevented = history.reduce((sum, item) => sum + (item.totalLossRub || 0), 0);
+
+  const dynamicsData = useMemo(() => {
+    if (history.length < 2) return [];
+    return [...history]
+      .reverse()
+      .map((item, idx) => ({
+        index: idx + 1,
+        date: new Date(item.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+        score: item.overallScore || 0,
+        lossRub: item.totalLossRub || 0,
+        fileName: item.fileName,
+      }));
+  }, [history]);
+
+  const handleOpenReport = async (item: AuditHistoryItem) => {
+    setLoadingReportId(item.id);
+    try {
+      const res = await fetch(`/api/audit/${item.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.report) {
+          setSelectedReport(data.report);
+          setSelectedFileName(data.fileName || item.fileName);
+          return;
+        }
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setLoadingReportId(null);
+    }
+  };
+
   // Если администратор зашел в личный кабинет пользователя
   if (user?.role === 'ADMIN') {
     return (
@@ -134,27 +183,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const handleOpenReport = async (item: AuditHistoryItem) => {
-    setLoadingReportId(item.id);
-    try {
-      const res = await fetch(`/api/audit/${item.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.report) {
-          setSelectedReport(data.report);
-          setSelectedFileName(data.fileName || item.fileName);
-          return;
-        }
-      }
-    } catch {
-      // Fallback
-    } finally {
-      setLoadingReportId(null);
-    }
-  };
-
-  const totalLossPrevented = history.reduce((sum, item) => sum + (item.totalLossRub || 0), 0);
 
   if (isAuthLoading || !user) {
     return (
@@ -217,6 +245,24 @@ export default function DashboardPage() {
               {/* Управление тарифом и брендингом */}
               {user && (
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsComparisonModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Сравнить «До / После»</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsBlacklistModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                    <span>AI-Блеклист РСЯ</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setIsWhiteLabelModalOpen(true)}
@@ -336,6 +382,64 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* График динамики Индекса Здоровья (если есть от 2 проверок) */}
+            {dynamicsData.length >= 2 && (
+              <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm sm:text-base font-bold text-slate-900">
+                        Динамика качества кампаний (Health Score)
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        Изменение показателей по мере внедрения оптимизаций директолога
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsComparisonModalOpen(true)}
+                    className="self-start sm:self-auto text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100 transition-colors flex items-center gap-1"
+                  >
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>Сравнить срезы «До / После»</span>
+                  </button>
+                </div>
+
+                <div className="h-48 sm:h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dynamicsData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#10B981" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        formatter={(val: any) => [`${val}/100`, 'Индекс здоровья']}
+                        contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '12px' }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="score"
+                        stroke="#10B981"
+                        strokeWidth={3}
+                        fillOpacity={1}
+                        fill="url(#scoreGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
             {/* Таблица истории проверок */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
               <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
@@ -452,6 +556,19 @@ export default function DashboardPage() {
       <WhiteLabelSettingsModal
         isOpen={isWhiteLabelModalOpen}
         onClose={() => setIsWhiteLabelModalOpen(false)}
+      />
+
+      {/* Модальное окно сравнения аудитов До и После */}
+      <AuditComparisonModal
+        isOpen={isComparisonModalOpen}
+        onClose={() => setIsComparisonModalOpen(false)}
+        history={history}
+      />
+
+      {/* Модальное окно AI-блеклиста РСЯ */}
+      <RsyaBlacklistModal
+        isOpen={isBlacklistModalOpen}
+        onClose={() => setIsBlacklistModalOpen(false)}
       />
 
       <Footer />

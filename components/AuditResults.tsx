@@ -34,7 +34,11 @@ import { AuditCharts } from './AuditCharts';
 import { SearchQueryVisualizer } from './SearchQueryVisualizer';
 import { PricingModal } from './PricingModal';
 import { WhiteLabelSettingsModal } from './WhiteLabelSettingsModal';
+import { CommercialProposalModal } from './CommercialProposalModal';
+import { RsyaBlacklistModal } from './RsyaBlacklistModal';
+import { AuditComparisonModal } from './AuditComparisonModal';
 import { UserTier, getTierConfig, isFeatureAllowed } from '@/lib/billing/tiers';
+import { FileSpreadsheet, Sliders } from 'lucide-react';
 
 interface AuditResultsProps {
   report: AuditReportData;
@@ -48,6 +52,10 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState(false);
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [isBlacklistModalOpen, setIsBlacklistModalOpen] = useState(false);
+  const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+  const [comparisonHistory, setComparisonHistory] = useState<any[]>([]);
   const [ruleFilter, setRuleFilter] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'PASSED'>('ALL');
   const [expandedRuleIds, setExpandedRuleIds] = useState<Record<string, boolean>>({});
 
@@ -103,6 +111,78 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
       return;
     }
     setIsTaskModalOpen(true);
+  };
+
+  const handleOpenComparison = async () => {
+    if (!isPaidUser && !isDemoReport) {
+      setIsPricingModalOpen(true);
+      return;
+    }
+    try {
+      if (user) {
+        const headers: Record<string, string> = {
+          'x-user-id': user.id,
+          'x-user-email': user.email,
+        };
+        const res = await fetch('/api/audit/history', { headers });
+        const data = await res.json();
+        if (data.reports) {
+          setComparisonHistory(data.reports);
+        }
+      }
+    } catch {}
+    setIsComparisonModalOpen(true);
+  };
+
+  const handleExportCsv = () => {
+    if (!isPaidUser) {
+      setIsPricingModalOpen(true);
+      return;
+    }
+    const campaignsList = report.campaigns || [];
+    const headers = [
+      'ID кампании',
+      'Название кампании',
+      'Тип',
+      'Расход (₽)',
+      'Клики',
+      'Показы',
+      'CTR (%)',
+      'CPC (₽)',
+      'Конверсии',
+      'CR (%)',
+      'CPA (₽)',
+    ];
+    const rows = campaignsList.map((c) => {
+      const ctr = c.impressions > 0 ? ((c.clicks / c.impressions) * 100).toFixed(2) : '0';
+      const cpc = c.clicks > 0 ? (c.spendRub / c.clicks).toFixed(2) : '0';
+      const cr = c.clicks > 0 ? ((c.conversions / c.clicks) * 100).toFixed(2) : '0';
+      const cpa = c.conversions > 0 ? Math.round(c.spendRub / c.conversions) : '';
+      return [
+        `"${c.id}"`,
+        `"${(c.name || '').replace(/"/g, '""')}"`,
+        `"${c.type}"`,
+        c.spendRub,
+        c.clicks,
+        c.impressions,
+        ctr,
+        cpc,
+        c.conversions,
+        cr,
+        cpa,
+      ].join(';');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `audit_direct_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -188,14 +268,24 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsWhiteLabelModalOpen(true)}
-            className="print:hidden px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white transition-all flex items-center gap-1.5 shrink-0"
-          >
-            <Settings className="w-3.5 h-3.5 text-purple-300" />
-            <span>Настроить брендинг</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0 print:hidden">
+            <button
+              type="button"
+              onClick={() => setIsProposalModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>КП для клиента</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsWhiteLabelModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white transition-all flex items-center gap-1.5"
+            >
+              <Settings className="w-3.5 h-3.5 text-purple-300" />
+              <span>Настроить брендинг</span>
+            </button>
+          </div>
         </div>
       ) : isPaidUser && (user?.tier === 'MAX' || user?.tier === 'CORP') ? (
         <div className="print:hidden bg-gradient-to-r from-purple-900/90 to-indigo-900 text-white rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-purple-700">
@@ -557,15 +647,42 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleOpenComparison}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-all shadow-2xs"
+                >
+                  <Sliders className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Сравнить «До / После»</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsBlacklistModalOpen(true)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition-all shadow-2xs"
+                >
+                  <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>AI-Блеклист РСЯ</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all shadow-2xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>В Excel (CSV)</span>
+                </button>
+
                 <button
                   type="button"
                   id="open-task-btn"
                   onClick={handleOpenContractorTask}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm transition-all shadow-xs"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs transition-all shadow-2xs"
                 >
                   <ClipboardList className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>Сформировать ТЗ подрядчику</span>
+                  <span>ТЗ подрядчику</span>
                 </button>
 
                 <button
@@ -573,7 +690,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
                   id="download-report-btn"
                   onClick={handleDownloadReport}
                   disabled={isPdfGenerating}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all"
                 >
                   {isPdfGenerating ? (
                     <>
@@ -584,7 +701,7 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
                     <>
                       <Download className="w-4 h-4 shrink-0" />
                       <span>
-                        {hasWhiteLabel ? 'Скачать White-label PDF' : 'Печать / Сохранить в PDF'}
+                        {hasWhiteLabel ? 'White-label PDF' : 'Печать / В PDF'}
                       </span>
                     </>
                   )}
@@ -613,6 +730,27 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
       <WhiteLabelSettingsModal
         isOpen={isWhiteLabelModalOpen}
         onClose={() => setIsWhiteLabelModalOpen(false)}
+      />
+
+      {/* Модальное окно брендированного КП для клиентов */}
+      <CommercialProposalModal
+        isOpen={isProposalModalOpen}
+        onClose={() => setIsProposalModalOpen(false)}
+        report={report}
+        clientName={sourceName}
+      />
+
+      {/* Модальное окно AI-блеклиста РСЯ */}
+      <RsyaBlacklistModal
+        isOpen={isBlacklistModalOpen}
+        onClose={() => setIsBlacklistModalOpen(false)}
+      />
+
+      {/* Модальное окно сравнения аудитов До / После */}
+      <AuditComparisonModal
+        isOpen={isComparisonModalOpen}
+        onClose={() => setIsComparisonModalOpen(false)}
+        history={comparisonHistory}
       />
     </div>
   );

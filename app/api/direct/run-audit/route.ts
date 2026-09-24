@@ -5,7 +5,10 @@ import { saveAuditRecord } from '@/lib/db/audit-store';
 import { findUserById, updateUser } from '@/lib/db/users-store';
 import { saveReportToStorage } from '@/lib/storage/report-storage';
 import { notifyAuditCompleted } from '@/lib/notifications/admin-notify';
-import { discoverCampaignsFromReports } from '@/lib/direct/reports-discovery';
+import { discoverCampaignsFromReports, fetchCampaignDeviceStats, fetchCampaignSearchQueries } from '@/lib/direct/reports-discovery';
+import { generateAiDirectAudit } from '@/lib/ai/direct-analyst';
+import { analyzeSearchQueriesAi } from '@/lib/ai/search-query-analyst';
+import { isFeatureAllowed } from '@/lib/billing/tiers';
 
 export async function POST(req: NextRequest) {
   try {
@@ -174,22 +177,58 @@ export async function POST(req: NextRequest) {
       if (filtered.length === 0) filtered = campaignsList;
     }
 
+    const campaignIdStrings = filtered.map((c: any) => String(c.Id));
+
+    // Запрашиваем реальные данные по устройствам и конверсиям через Reports API
+    let deviceStatsMap = new Map<string, any>();
+    try {
+      deviceStatsMap = await fetchCampaignDeviceStats(
+        connection.accessToken,
+        targetAccountLogin && targetAccountLogin !== connection.login ? targetAccountLogin : undefined,
+        effectivePeriodFrom,
+        effectivePeriodTo,
+        campaignIdStrings
+      );
+    } catch (devErr) {
+      console.warn('[DIRECT AUDIT] Device stats fetch error:', devErr);
+    }
+
+    // Запрашиваем реальные поисковые запросы из аккаунта (если тариф поддерживает или суперюзер)
+    const userTier = user?.tier || 'PRO';
+    const canUseSearchClustering = isSuperAdmin || isFeatureAllowed(userTier, 'searchClustering');
+    let realSearchQueries: any[] = [];
+
+    if (canUseSearchClustering) {
+      try {
+        realSearchQueries = await fetchCampaignSearchQueries(
+          connection.accessToken,
+          targetAccountLogin && targetAccountLogin !== connection.login ? targetAccountLogin : undefined,
+          effectivePeriodFrom,
+          effectivePeriodTo,
+          campaignIdStrings
+        );
+      } catch (sqErr) {
+        console.warn('[DIRECT AUDIT] Search queries fetch error:', sqErr);
+      }
+    }
+
     // Собираем реальные данные для расчетного движка аудита
     const auditData = {
       totalSpendRub: 0,
       totalConversions: 0,
       currency: filtered[0]?.Currency || 'RUB',
+      searchQueries: realSearchQueries.length > 0 ? realSearchQueries : undefined,
       period: {
         from: effectivePeriodFrom,
         to: effectivePeriodTo,
       },
       campaigns: filtered.map((c: any) => {
+        const campIdStr = String(c.Id);
+        const deviceData = deviceStatsMap.get(campIdStr);
+
         const isStopped =
           c.State === 'OFF' || c.State === 'SUSPENDED' || c.State === 'ENDED' || c.State === 'ARCHIVED';
         const dailyBudgetValue = c.DailyBudget?.Amount ? Number(c.DailyBudget.Amount) / 1000000 : 1000;
-        const estSpend = isStopped
-          ? (Number(c.Cost) || 0)
-          : Math.round(dailyBudgetValue * Math.min(periodDays, 30));
 
         let campType: 'SMART' | 'SEARCH' | 'RSYA' | 'UNKNOWN' = 'UNKNOWN';
         if (c.Type === 'SMART_CAMPAIGN') {
@@ -200,23 +239,54 @@ export async function POST(req: NextRequest) {
           campType = 'RSYA';
         }
 
-        const realClicks = Number(c.Clicks) || 0;
-        const realImpressions = Number(c.Impressions) || 0;
-        const realCost = Number(c.Cost) || 0;
+        // Берем реальные цифры из Reports API, если доступны, либо из базового объекта кампании
+        let realCost = deviceData ? deviceData.totalSpend : Number(c.Cost) || 0;
+        let realClicks = deviceData ? deviceData.totalClicks : Number(c.Clicks) || 0;
+        let realImpressions = deviceData ? deviceData.totalImpressions : Number(c.Impressions) || 0;
+        let realConversions = deviceData ? deviceData.totalConversions : 0;
+
+        const estSpend = isStopped
+          ? realCost
+          : realCost > 0
+          ? realCost
+          : Math.round(dailyBudgetValue * Math.min(periodDays, 30));
+
+        const finalSpend = realCost > 0 ? Math.round(realCost) : estSpend;
+        const finalClicks = realClicks > 0 ? realClicks : (isStopped ? 0 : Math.round(finalSpend / 35));
+        const finalImpressions = realImpressions > 0 ? realImpressions : (isStopped ? 0 : finalClicks * 45);
+
+        // Реальный срез по устройствам
+        let desktopSpendRub = 0;
+        let desktopConversions = 0;
+        let mobileSpendRub = 0;
+        let mobileConversions = 0;
+
+        if (deviceData && (deviceData.desktopSpend > 0 || deviceData.mobileSpend > 0)) {
+          desktopSpendRub = Math.round(deviceData.desktopSpend);
+          desktopConversions = deviceData.desktopConversions;
+          mobileSpendRub = Math.round(deviceData.mobileSpend);
+          mobileConversions = deviceData.mobileConversions;
+        } else {
+          // Эвристический сплит при отсутствии данных в срезе
+          desktopSpendRub = Math.round(finalSpend * 0.4);
+          desktopConversions = 0;
+          mobileSpendRub = Math.round(finalSpend * 0.6);
+          mobileConversions = realConversions;
+        }
 
         return {
-          id: String(c.Id),
+          id: campIdStr,
           name: c.Name || `Кампания ${c.Id}`,
           type: campType,
-          strategy: 'Оптимизация кликов / Автостратегия',
-          spendRub: realCost > 0 ? Math.round(realCost) : estSpend,
-          clicks: realClicks > 0 ? realClicks : (isStopped ? 0 : Math.round(estSpend / 35)),
-          impressions: realImpressions > 0 ? realImpressions : (isStopped ? 0 : Math.round(estSpend / 35) * 50),
-          conversions: isStopped ? 0 : Math.max(0, Math.round(estSpend / 1500)),
-          desktopSpendRub: Math.round((realCost > 0 ? realCost : estSpend) * 0.4),
-          desktopConversions: 0,
-          mobileSpendRub: Math.round((realCost > 0 ? realCost : estSpend) * 0.6),
-          mobileConversions: isStopped ? 0 : Math.max(0, Math.round(estSpend / 1500)),
+          strategy: c.DailyBudget ? 'Оптимизация бюджета' : 'Автостратегия Яндекс.Директ',
+          spendRub: finalSpend,
+          clicks: finalClicks,
+          impressions: finalImpressions,
+          conversions: realConversions,
+          desktopSpendRub,
+          desktopConversions,
+          mobileSpendRub,
+          mobileConversions,
         };
       }),
     };
@@ -228,11 +298,35 @@ export async function POST(req: NextRequest) {
     const report = await defaultAuditEngine.runAudit(auditData);
     report.campaigns = auditData.campaigns;
 
+    // AI-анализ аномалий через Gemini (для тарифов PRO, MAX, CORP)
+    const canUseAi = isSuperAdmin || isFeatureAllowed(userTier, 'aiInsights');
+    if (canUseAi) {
+      try {
+        const aiResult = await generateAiDirectAudit(auditData, report);
+        if (aiResult) {
+          report.aiAnalysis = aiResult;
+        }
+      } catch (aiErr) {
+        console.warn('[DIRECT AUDIT] AI analysis skipped:', aiErr);
+      }
+    }
+
+    // AI-анализ семантики поисковых запросов
+    if (canUseSearchClustering && realSearchQueries.length > 0) {
+      try {
+        const queryAiResult = await analyzeSearchQueriesAi(realSearchQueries);
+        if (queryAiResult) {
+          report.searchQueryAnalysis = queryAiResult;
+        }
+      } catch (qErr) {
+        console.warn('[DIRECT AUDIT] Query analysis skipped:', qErr);
+      }
+    }
+
     const selectedCount = auditData.campaigns.length;
     const fileName = `Яндекс.Директ (${effectiveLogin}) — ${selectedCount} ${selectedCount === 1 ? 'кампания' : 'кампаний'} (${periodDays} дн.)`;
 
     // Персистентно сохраняем в базу данных
-    const userTier = user?.tier || 'PRO';
     const auditId = await saveAuditRecord({
       userId,
       userEmail,

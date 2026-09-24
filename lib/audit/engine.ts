@@ -5,6 +5,10 @@ import { Rule03StrategyNoGoals } from './rules/rule_03_strategy';
 import { Rule04ZeroConversionCampaigns } from './rules/rule_04_zero_conv';
 import { Rule05CpaAnomaly } from './rules/rule_05_cpa_anomaly';
 import { Rule06LowCtrWaste } from './rules/rule_06_low_ctr_waste';
+import { Rule07SearchRsyaMix } from './rules/rule_07_search_rsya_mix';
+import { Rule08HighCpcAnomaly } from './rules/rule_08_high_cpc';
+import { Rule09AutotargetingDrain } from './rules/rule_09_autotargeting';
+import { Rule10BudgetPacingDrain } from './rules/rule_10_budget_pacing';
 
 export class AuditEngine {
   private rules: IAuditRule[];
@@ -17,6 +21,10 @@ export class AuditEngine {
       new Rule04ZeroConversionCampaigns(),
       new Rule05CpaAnomaly(),
       new Rule06LowCtrWaste(),
+      new Rule07SearchRsyaMix(),
+      new Rule08HighCpcAnomaly(),
+      new Rule09AutotargetingDrain(),
+      new Rule10BudgetPacingDrain(),
     ];
   }
 
@@ -48,10 +56,28 @@ export class AuditEngine {
     }
     score = Math.max(5, Math.min(100, score));
 
+    const totalClicks = data.campaigns.reduce((s, c) => s + (c.clicks || 0), 0);
+    const totalImpressions = data.campaigns.reduce((s, c) => s + (c.impressions || 0), 0);
+    const totalConversions =
+      data.totalConversions !== undefined
+        ? data.totalConversions
+        : data.campaigns.reduce((s, c) => s + (c.conversions || 0), 0);
+
+    const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+    const avgCpc = totalClicks > 0 ? data.totalSpendRub / totalClicks : 0;
+    const avgCr = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+    const avgCpa = totalConversions > 0 ? data.totalSpendRub / totalConversions : 0;
+
     return {
       overallScore: score,
       totalSpendRub: data.totalSpendRub,
-      totalConversions: data.totalConversions,
+      totalConversions,
+      totalClicks,
+      totalImpressions,
+      avgCtr: Math.round(avgCtr * 100) / 100,
+      avgCpc: Math.round(avgCpc * 100) / 100,
+      avgCr: Math.round(avgCr * 100) / 100,
+      avgCpa: Math.round(avgCpa),
       totalLossRub: boundedLossRub,
       totalPotentialLossRub: boundedLossRub,
       totalWasteRub: boundedLossRub,

@@ -30,7 +30,7 @@ export class Rule03StrategyNoGoals implements IAuditRule {
       estimatedLossRub: loss,
       recommendation:
         'Переведите кампании на стратегию «Оптимизация конверсий» с ограничением недельного бюджета и оплатой за подтвержденные лиды/цели.',
-      isLockedInExpress: true,
+      isLockedInExpress: false,
     };
   }
 }

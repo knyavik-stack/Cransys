@@ -65,6 +65,12 @@ export interface AuditReportData {
   overallScore: number; // 0..100 Health Score
   totalSpendRub: number;
   totalConversions?: number;
+  totalClicks?: number;
+  totalImpressions?: number;
+  avgCtr?: number;
+  avgCpc?: number;
+  avgCr?: number;
+  avgCpa?: number;
   totalLossRub: number;
   totalPotentialLossRub?: number;
   totalWasteRub?: number;

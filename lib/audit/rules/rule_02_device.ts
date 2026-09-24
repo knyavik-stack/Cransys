@@ -43,7 +43,7 @@ export class Rule02DeviceDisparity implements IAuditRule {
       estimatedLossRub: loss,
       recommendation:
         'Установите корректировку ставок -50% или -100% на мобильные устройства в кампаниях с низкой конверсией адаптивной посадочной страницы.',
-      isLockedInExpress: true, // Доступно в тарифе Pro
+      isLockedInExpress: false,
     };
   }
 }

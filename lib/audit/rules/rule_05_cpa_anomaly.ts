@@ -53,7 +53,7 @@ export class Rule05CpaAnomaly implements IAuditRule {
       estimatedLossRub: overpaidSum,
       recommendation:
         'Ограничьте предельную ставку или переведите дорогие кампании на целевой CPA с фиксацией цены конверсии в параметрах стратегии.',
-      isLockedInExpress: true,
+      isLockedInExpress: false,
     };
   }
 }

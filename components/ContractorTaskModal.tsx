@@ -24,9 +24,13 @@ export function ContractorTaskModal({ report, sourceName, isOpen, onClose }: Con
 Объект аудита: ${sourceName}
 Зафиксированный слив бюджета: ${report.totalLossRub.toLocaleString('ru-RU')} ₽ (из ${report.totalSpendRub.toLocaleString('ru-RU')} ₽)
 Индекс здоровья кабинета: ${report.overallScore}/100
+Всего конверсий: ${report.totalConversions || 0} шт.
+Средний CTR: ${report.avgCtr !== undefined ? report.avgCtr.toFixed(2) + '%' : '—'}
+Средний CPC: ${report.avgCpc !== undefined ? report.avgCpc.toFixed(1) + ' ₽' : '—'}
+Средний CPA: ${report.avgCpa ? report.avgCpa.toLocaleString('ru-RU') + ' ₽' : '—'}
 
 ---
-СПИСОК ВЫЯВЛЕННЫХ КРИТИЧЕСКИХ НАРУШЕНИЙ:
+СПИСОК ВЫЯВЛЕННЫХ НАРУШЕНИЙ:
 ${flaggedRules
   .map(
     (rule, idx) => `
