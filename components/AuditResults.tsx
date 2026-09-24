@@ -424,6 +424,50 @@ export function AuditResults({ report, sourceName, onReset }: AuditResultsProps)
             </span>
           </div>
         </div>
+
+        {/* Блок бизнес-вердикта эксперта для собственника и маркетолога */}
+        {report.executiveSummary && (
+          <div className="mt-5 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border border-indigo-900/60 shadow-sm space-y-3.5 print:bg-slate-50 print:text-slate-900 print:border-slate-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-white/10 print:border-slate-200">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-500/30 border border-blue-400/40 text-[10px] font-bold uppercase tracking-wider text-blue-300 print:text-blue-800 print:border-blue-300">
+                  Бизнес-вердикт аудита
+                </span>
+                <span className="text-xs text-slate-300 font-semibold print:text-slate-600">
+                  Оценка эффективности и потенциал роста
+                </span>
+              </div>
+              <span className="text-xs text-indigo-300 font-mono print:text-slate-700">
+                Целевой CPA ниши: ~{report.executiveSummary.targetCpaBenchmarkRub.toLocaleString('ru-RU')} ₽
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <h4 className="text-base sm:text-lg font-bold text-white tracking-tight print:text-slate-900">
+                {report.executiveSummary.headline}
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed print:text-slate-700">
+                {report.executiveSummary.verdictText}
+              </p>
+            </div>
+
+            {report.executiveSummary.quickActionSteps && report.executiveSummary.quickActionSteps.length > 0 && (
+              <div className="pt-2.5 border-t border-white/10 print:border-slate-200">
+                <span className="text-[11px] font-bold text-blue-300 uppercase tracking-wider block mb-1.5 print:text-blue-800">
+                  ⚡ 3 срочных действия для директолога:
+                </span>
+                <ul className="space-y-1.5 text-xs text-slate-200 print:text-slate-800">
+                  {report.executiveSummary.quickActionSteps.map((step, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-blue-400 font-bold shrink-0 print:text-blue-600">{idx + 1}.</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* БЛОК ДЛЯ НЕОПЛАЧЕННЫХ ПОЛЬЗОВАТЕЛЕЙ (кроме ДЕМО-отчета) */}

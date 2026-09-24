@@ -61,6 +61,16 @@ export interface AiAnalysisData {
   contractorChecklist: string[];
 }
 
+export interface ExecutiveSummary {
+  headline: string;
+  verdictText: string;
+  criticalIssuesCount: number;
+  warningsCount: number;
+  potentialGrowthLeads: number;
+  targetCpaBenchmarkRub: number;
+  quickActionSteps: string[];
+}
+
 export interface AuditReportData {
   overallScore: number; // 0..100 Health Score
   totalSpendRub: number;
@@ -81,6 +91,7 @@ export interface AuditReportData {
   campaigns?: CampaignData[];
   aiAnalysis?: AiAnalysisData;
   searchQueryAnalysis?: SearchQueryAiReport;
+  executiveSummary?: ExecutiveSummary;
   isDemo?: boolean;
 }
 

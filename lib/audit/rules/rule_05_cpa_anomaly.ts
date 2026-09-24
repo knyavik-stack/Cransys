@@ -21,9 +21,34 @@ export class Rule05CpaAnomaly implements IAuditRule {
 
     const totalSpendWithConv = campaignsWithConv.reduce((sum, c) => sum + c.spendRub, 0);
     const totalConv = campaignsWithConv.reduce((sum, c) => sum + c.conversions, 0);
+    const totalClicks = campaignsWithConv.reduce((sum, c) => sum + (c.clicks || 0), 0);
     const avgCpa = totalSpendWithConv / totalConv;
+    const avgCr = totalClicks > 0 ? (totalConv / totalClicks) * 100 : 0;
 
-    // Кампании, где CPA в 2.5+ раза дороже среднего
+    // 1. Для аккаунтов с 1 кампанией: оцениваем абсолютную норму CPA и микро-конверсию
+    if (campaignsWithConv.length === 1) {
+      const single = campaignsWithConv[0];
+      const isSingleExpensive = single.spendRub >= 5000 && avgCpa > 3200 && avgCr < 0.35;
+
+      if (isSingleExpensive) {
+        const benchmarkCpa = 1500; // Оптимальная рыночная стоимость конверсии в услугах
+        const overpaid = Math.max(0, Math.round((avgCpa - benchmarkCpa) * single.conversions));
+
+        return {
+          ruleId: this.id,
+          severity: 'WARNING',
+          title: 'Аномально высокая стоимость заявки (CPA) при низкой конверсии сайта',
+          fact: `Средняя цена заявки составляет ${Math.round(avgCpa).toLocaleString('ru-RU')} ₽ при критически низком коэффициенте конверсии (CR = ${avgCr.toFixed(2)}%: всего ${single.conversions} лидов с ${single.clicks.toLocaleString('ru-RU')} кликов).`,
+          flagged: true,
+          estimatedLossRub: overpaid,
+          recommendation:
+            'Установите предельную цену конверсии (CPA) в настройках автостратегии (не выше 1 500–2 000 ₽) и проведите аудит юзабилити мобильной посадочной страницы (95% посетителей уходят без заявки).',
+          isLockedInExpress: false,
+        };
+      }
+    }
+
+    // 2. Для аккаунтов с несколькими кампаниями: кампании, где CPA в 2.2+ раза дороже среднего по аккаунту
     const expensiveCampaigns = campaignsWithConv.filter((c) => {
       const cpa = c.spendRub / c.conversions;
       return cpa > avgCpa * 2.2 && c.spendRub > 3000;

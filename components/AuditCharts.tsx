@@ -42,6 +42,7 @@ import {
   Lightbulb,
   ArrowDownRight,
   Flame,
+  Monitor,
 } from 'lucide-react';
 
 interface AuditChartsProps {
@@ -108,33 +109,32 @@ export function AuditCharts({ report }: AuditChartsProps) {
       ? totalSpend / totalConversions
       : 0;
 
-  // 1. Данные для распределения каналов (РСЯ vs Поиск vs Прочее)
+  // 1. Данные для распределения каналов (на 100% реальных типах кампаний)
   let rsyaSpend = 0;
   let searchSpend = 0;
+  let smartSpend = 0;
   let otherSpend = 0;
 
   for (const c of campaigns) {
-    if (c.type === 'RSYA') {
+    if (c.type === 'RSYA' || c.name.toLowerCase().includes('рся') || c.name.toLowerCase().includes('сеть')) {
       rsyaSpend += c.spendRub;
-    } else if (c.type === 'SEARCH') {
+    } else if (c.type === 'SEARCH' || c.name.toLowerCase().includes('поиск') || c.name.toLowerCase().includes('search')) {
       searchSpend += c.spendRub;
+    } else if (c.type === 'SMART' || c.name.toLowerCase().includes('мастер')) {
+      smartSpend += c.spendRub;
     } else {
       otherSpend += c.spendRub;
     }
   }
 
-  if (rsyaSpend === 0 && searchSpend === 0) {
-    rsyaSpend = totalLoss;
-    searchSpend = Math.max(0, totalSpend - totalLoss);
-  }
-
   const channelData = [
-    { name: 'Неэффективные сети (РСЯ)', value: Math.round(rsyaSpend), color: '#EF4444' },
-    { name: 'Целевой Поиск', value: Math.max(0, Math.round(searchSpend)), color: '#3B82F6' },
+    ...(searchSpend > 0 ? [{ name: 'Поиск (Яндекс)', value: Math.round(searchSpend), color: '#3B82F6' }] : []),
+    ...(rsyaSpend > 0 ? [{ name: 'Сети (РСЯ)', value: Math.round(rsyaSpend), color: '#EF4444' }] : []),
+    ...(smartSpend > 0 ? [{ name: 'Мастер Кампаний / Смарт', value: Math.round(smartSpend), color: '#8B5CF6' }] : []),
     ...(otherSpend > 0 ? [{ name: 'Прочие форматы', value: Math.round(otherSpend), color: '#10B981' }] : []),
-  ].filter((item) => item.value > 0);
+  ];
 
-  // 2. Данные для устройств (Мобильные vs ПК)
+  // 2. Данные для устройств (Мобильные vs ПК на 100% реальных срезах)
   let mobileSpend = 0;
   let mobileConv = 0;
   let desktopSpend = 0;
@@ -147,19 +147,20 @@ export function AuditCharts({ report }: AuditChartsProps) {
     desktopConv += c.desktopConversions || 0;
   }
 
-  const defaultMobileSpend = totalLoss > 0 ? totalLoss * 0.85 : totalSpend * 0.65;
-  const defaultDesktopSpend = totalSpend - defaultMobileSpend;
+  const hasDeviceSplit = mobileSpend > 0 || desktopSpend > 0;
+  const effectiveMobileSpend = hasDeviceSplit ? mobileSpend : totalSpend;
+  const effectiveDesktopSpend = hasDeviceSplit ? desktopSpend : 0;
 
   const deviceData = [
     {
       name: 'Смартфоны (Mobile)',
-      Расход: Math.round(mobileSpend || defaultMobileSpend),
+      Расход: Math.round(effectiveMobileSpend),
       Конверсии: mobileConv,
     },
     {
       name: 'Компьютеры (Desktop)',
-      Расход: Math.round(desktopSpend || defaultDesktopSpend),
-      Конверсии: Math.max(0, Math.round(desktopConv || totalConversions || 0)),
+      Расход: Math.round(effectiveDesktopSpend),
+      Конверсии: desktopConv,
     },
   ];
 
@@ -269,6 +270,9 @@ export function AuditCharts({ report }: AuditChartsProps) {
     setTimeout(() => setCopiedTipIndex(null), 2000);
   };
 
+  const zeroConvCampaigns = useMemo(() => campaigns.filter((c) => (c.conversions || 0) === 0), [campaigns]);
+  const zeroConvSpend = useMemo(() => zeroConvCampaigns.reduce((s, c) => s + (c.spendRub || 0), 0), [zeroConvCampaigns]);
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* ПАНЕЛЬ СКВОЗНЫХ МЕТРИК КАБИНЕТА (CTR, CPC, CR, CPA, Показы, Клики) */}
@@ -349,6 +353,98 @@ export function AuditCharts({ report }: AuditChartsProps) {
           <span className="text-[10px] text-slate-500 mt-0.5">
             {avgCpa > 0 ? 'CPA целевого действия' : '0 конверсий'}
           </span>
+        </div>
+      </div>
+
+      {/* ДЕТАЛЬНАЯ ПРОЗРАЧНАЯ ДЕКОМПОЗИЦИЯ: ОТКУДА ИМЕННО ВЗЯЛИСЬ СУММЫ */}
+      <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-md border border-slate-800 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+          <div>
+            <h4 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <Layers className="w-4 h-4 text-blue-400" />
+              <span>Прозрачная декомпозиция рекламного бюджета ({totalSpend.toLocaleString('ru-RU')} ₽)</span>
+            </h4>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Точный расчет, куда ушли деньги: прямой слив, переплата по устройствам, нецелевые фразы и полезные конверсии
+            </p>
+          </div>
+          <div className="text-xs font-mono px-3 py-1 rounded-xl bg-slate-800 text-slate-300 self-start sm:self-auto">
+            Индекс здоровья: <strong className={report.overallScore < 50 ? 'text-red-400' : report.overallScore < 80 ? 'text-amber-400' : 'text-emerald-400'}>{report.overallScore}/100</strong>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          {/* 1. Прямой слив без конверсий */}
+          <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex flex-col justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-red-400 flex items-center justify-between">
+              <span>Слив без конверсий</span>
+              <Flame className="w-3.5 h-3.5 text-red-400" />
+            </span>
+            <div className="mt-2">
+              <span className="text-lg sm:text-xl font-extrabold font-mono text-red-400">
+                {zeroConvSpend.toLocaleString('ru-RU')} ₽
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                {zeroConvCampaigns.length > 0
+                  ? `${zeroConvCampaigns.length} камп. израсходовали бюджет с 0 заявок.`
+                  : 'Все активные кампании принесли хотя бы 1 лид.'}
+              </p>
+            </div>
+          </div>
+
+          {/* 2. Срез по смартфонам */}
+          <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex flex-col justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400 flex items-center justify-between">
+              <span>Смартфоны ({totalSpend > 0 ? Math.round((effectiveMobileSpend / totalSpend) * 100) : 0}%)</span>
+              <Smartphone className="w-3.5 h-3.5 text-blue-400" />
+            </span>
+            <div className="mt-2">
+              <span className="text-lg sm:text-xl font-extrabold font-mono text-white">
+                {effectiveMobileSpend.toLocaleString('ru-RU')} ₽
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                {mobileConv > 0
+                  ? `${mobileConv} заявок по ${Math.round(effectiveMobileSpend / mobileConv).toLocaleString('ru-RU')} ₽ / лид.`
+                  : '0 заявок со смартфонов.'}
+              </p>
+            </div>
+          </div>
+
+          {/* 3. Срез по компьютерам */}
+          <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex flex-col justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center justify-between">
+              <span>Компьютеры ({totalSpend > 0 ? Math.round((effectiveDesktopSpend / totalSpend) * 100) : 0}%)</span>
+              <Monitor className="w-3.5 h-3.5 text-indigo-400" />
+            </span>
+            <div className="mt-2">
+              <span className="text-lg sm:text-xl font-extrabold font-mono text-white">
+                {effectiveDesktopSpend.toLocaleString('ru-RU')} ₽
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                {desktopConv > 0
+                  ? `${desktopConv} заявок по ${Math.round(effectiveDesktopSpend / desktopConv).toLocaleString('ru-RU')} ₽ / лид.`
+                  : '0 заявок с ПК (микро-трафик).'}
+              </p>
+            </div>
+          </div>
+
+          {/* 4. Нецелевые фразы (DIY/мусор) */}
+          <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex flex-col justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center justify-between">
+              <span>Мусорные фразы</span>
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            </span>
+            <div className="mt-2">
+              <span className="text-lg sm:text-xl font-extrabold font-mono text-amber-400">
+                {report.searchQueryAnalysis?.junkSpendRub ? `${report.searchQueryAnalysis.junkSpendRub.toLocaleString('ru-RU')} ₽` : '0 ₽'}
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                {report.searchQueryAnalysis?.junkQueriesCount
+                  ? `${report.searchQueryAnalysis.junkQueriesCount} фраз («своими руками», DIY, халява).`
+                  : 'Критических мусорных кликов не выявлено.'}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

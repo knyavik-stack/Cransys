@@ -42,8 +42,14 @@ export function AuditComparisonModal({
   initialBeforeId,
   initialAfterId,
 }: AuditComparisonModalProps) {
-  const defaultBefore = initialBeforeId || (history.length >= 2 ? history[history.length - 1].id : 'demo_before');
-  const defaultAfter = initialAfterId || (history.length >= 1 ? history[0].id : 'demo_after');
+  // Приоритет: реальные аудиты пользователя
+  const hasUserHistory = history && history.length > 0;
+  const defaultBefore =
+    initialBeforeId ||
+    (history.length >= 2 ? history[history.length - 1].id : history.length === 1 ? history[0].id : 'demo_before');
+  const defaultAfter =
+    initialAfterId ||
+    (history.length >= 1 ? history[0].id : 'demo_after');
 
   const [beforeReportId, setBeforeReportId] = useState<string>(defaultBefore);
   const [afterReportId, setAfterReportId] = useState<string>(defaultAfter);
@@ -51,6 +57,17 @@ export function AuditComparisonModal({
   const [afterData, setAfterData] = useState<AuditReportData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isCopied, setIsCopied] = useState<boolean>(false);
+
+  // Синхронизация выбора при изменении history или открытии
+  useEffect(() => {
+    if (history.length >= 2) {
+      if (!initialBeforeId) setBeforeReportId(history[history.length - 1].id);
+      if (!initialAfterId) setAfterReportId(history[0].id);
+    } else if (history.length === 1) {
+      if (!initialBeforeId) setBeforeReportId(history[0].id);
+      if (!initialAfterId) setAfterReportId(history[0].id);
+    }
+  }, [history, initialBeforeId, initialAfterId, isOpen]);
 
   // Загрузка полных отчетов для сравнения
   useEffect(() => {
@@ -250,6 +267,24 @@ export function AuditComparisonModal({
           </button>
         </div>
 
+        {/* Информационный баннер, если аудитов меньше 2 или выбран демо-образец */}
+        {(!hasUserHistory || history.length < 2 || beforeReportId.startsWith('demo') || afterReportId.startsWith('demo')) && (
+          <div className="bg-blue-50/80 border-b border-blue-100 px-5 sm:px-7 py-2.5 -mx-5 sm:-mx-7 text-xs text-blue-900 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold">
+                {beforeReportId.startsWith('demo') || afterReportId.startsWith('demo')
+                  ? 'ℹ️ Режим демонстрационного образца:'
+                  : `📊 В вашей истории сохранено ${history.length} из 2 аудитов:`}
+              </span>
+              <span className="text-blue-800">
+                {beforeReportId.startsWith('demo') || afterReportId.startsWith('demo')
+                  ? 'Отображаются модельные данные для наглядности формата. Выберите ваши реальные проверки из выпадающего списка.'
+                  : 'Для фиксации динамики выберите два разных аудита (например, за 90 и за 365 дней, либо до и после правок).'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Выбор двух аудитов */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-4 border-b border-slate-100 shrink-0 bg-slate-50/60 -mx-5 sm:-mx-7 px-5 sm:px-7">
           <div>
@@ -261,12 +296,18 @@ export function AuditComparisonModal({
               onChange={(e) => setBeforeReportId(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
-              <option value="demo_before">Демо: До оптимизации (слив 18 600 ₽, оценка 38/100)</option>
-              {history.map((h) => (
-                <option key={`before-${h.id}`} value={h.id}>
-                  {h.fileName} ({new Date(h.createdAt).toLocaleDateString('ru-RU')})
-                </option>
-              ))}
+              {history.length > 0 && (
+                <optgroup label="Ваши реальные аудиты">
+                  {history.map((h) => (
+                    <option key={`before-${h.id}`} value={h.id}>
+                      {h.fileName} ({new Date(h.createdAt).toLocaleDateString('ru-RU')})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Демонстрационный пример">
+                <option value="demo_before">Демо: До оптимизации (слив 18 600 ₽, оценка 38/100)</option>
+              </optgroup>
             </select>
           </div>
 
@@ -279,12 +320,18 @@ export function AuditComparisonModal({
               onChange={(e) => setAfterReportId(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
-              <option value="demo_after">Демо: После оптимизации (слив 1 200 ₽, оценка 92/100)</option>
-              {history.map((h) => (
-                <option key={`after-${h.id}`} value={h.id}>
-                  {h.fileName} ({new Date(h.createdAt).toLocaleDateString('ru-RU')})
-                </option>
-              ))}
+              {history.length > 0 && (
+                <optgroup label="Ваши реальные аудиты">
+                  {history.map((h) => (
+                    <option key={`after-${h.id}`} value={h.id}>
+                      {h.fileName} ({new Date(h.createdAt).toLocaleDateString('ru-RU')})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Демонстрационный пример">
+                <option value="demo_after">Демо: После оптимизации (слив 1 200 ₽, оценка 92/100)</option>
+              </optgroup>
             </select>
           </div>
         </div>
